@@ -35,6 +35,9 @@ export default function MarketingLayout({
           <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground">
             Contact
           </Link>
+          <Link href="/setup" className="text-sm text-muted-foreground hover:text-foreground">
+            Setup
+          </Link>
           <Link href="/admin" className="text-sm text-muted-foreground hover:text-foreground">
             Admin
           </Link>
@@ -61,6 +64,7 @@ export default function MarketingLayout({
             <Link href="/features" className="hover:text-foreground">Features</Link>
             <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
             <Link href="/contact" className="hover:text-foreground">Contact</Link>
+            <Link href="/setup" className="hover:text-foreground">Setup</Link>
           </nav>
         </div>
       </footer>

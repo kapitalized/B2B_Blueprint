@@ -39,13 +39,37 @@ export default async function PayloadLayout({ children }: Args) {
       </html>
     );
   }
-  return (
-    <RootLayout
-      config={Promise.resolve(config)}
-      importMap={importMap}
-      serverFunction={serverFunction}
-    >
-      {children}
-    </RootLayout>
-  );
+  const configPromise = typeof config.then === 'function' ? config : Promise.resolve(config);
+  try {
+    const layout = await RootLayout({
+      children,
+      config: configPromise,
+      importMap,
+      serverFunction,
+    });
+    if (layout == null) {
+      return (
+        <html lang="en">
+          <body style={{ padding: 24, fontFamily: 'sans-serif' }}>
+            <h1>Admin layout error</h1>
+            <p>RootLayout returned nothing. Check server logs for Payload/DB errors.</p>
+          </body>
+        </html>
+      );
+    }
+    return layout;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : '';
+    console.error('[PayloadLayout]', message, stack);
+    return (
+      <html lang="en">
+        <body style={{ padding: 24, fontFamily: 'sans-serif' }}>
+          <h1>Admin error</h1>
+          <p>{message}</p>
+          <pre style={{ marginTop: 16, fontSize: 12, overflow: 'auto' }}>{stack}</pre>
+        </body>
+      </html>
+    );
+  }
 }

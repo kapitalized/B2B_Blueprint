@@ -6,6 +6,9 @@
 import { getModelForStep } from './model-selector';
 import { callOpenRouter, isOpenRouterConfigured } from './openrouter';
 import { runCitationAudit, type AuditItem, type Benchmark } from './citation-audit';
+import { createAuditEntry, appendAuditEntry } from './audit-trail';
+import { getPromptOverrides } from './templates';
+import type { SourceSpan } from './types';
 
 export const TASK_STATUSES = [
   'PENDING',
@@ -21,6 +24,9 @@ export type TaskStatus = (typeof TASK_STATUSES)[number];
 export interface OrchestratorParams {
   taskId: string;
   orgId: string;
+  runId?: string;
+  documentId?: string;
+  templateId?: string;
   taskType?: string;
   fileUrl?: string;
   /** Optional: text or description of the source (when no image URL). */
@@ -36,6 +42,7 @@ export interface ExtractionResult {
     id: string;
     label: string;
     confidence_score: number;
+    source_span?: SourceSpan;
     coordinate_polygons?: unknown;
     raw?: unknown;
   }>;
@@ -54,6 +61,7 @@ export interface SynthesisResult {
 export interface PipelineResult {
   status: TaskStatus;
   taskId: string;
+  runId?: string;
   raw_extraction: ExtractionResult;
   final_analysis: AnalysisResult & { synthesis?: SynthesisResult };
   is_verified: false;
@@ -83,21 +91,26 @@ function stubAnalysis(extraction: ExtractionResult): AnalysisResult {
  * Run the 3-step pipeline. When OPENROUTER_API_KEY is not set, uses stub data so the flow completes.
  */
 export async function runPipeline(params: OrchestratorParams): Promise<PipelineResult> {
-  const { taskId, sourceContent, libraryContext = {}, benchmarks = [] } = params;
+  const { taskId, sourceContent, libraryContext = {}, benchmarks = [], templateId, documentId } = params;
+  const runId = params.runId ?? `run_${taskId}`;
   const hasKey = isOpenRouterConfigured();
+  const overrides = templateId ? getPromptOverrides(templateId) : {};
 
   // Step 1: Vision extraction
-  const extractionPrompt = `Extract from the following source as structured JSON. For each item include: id, label, confidence_score (0-1), and coordinate_polygons if spatial. Source: ${sourceContent ?? '[No content: add fileUrl or sourceContent]'}`;
+  const extractionBase = overrides.extraction ?? 'Extract from the following source as structured JSON. For each item include: id, label, confidence_score (0-1), and coordinate_polygons if spatial.';
+  const extractionPrompt = `${extractionBase} Source: ${sourceContent ?? '[No content: add fileUrl or sourceContent]'}`;
   let raw_extraction: ExtractionResult;
+  const extractionModel = getModelForStep('EXTRACTION');
 
   if (hasKey) {
     try {
       const content = await callOpenRouter({
-        model: getModelForStep('EXTRACTION'),
+        model: extractionModel,
         messages: [{ role: 'user', content: extractionPrompt }],
         max_tokens: 2048,
       });
       raw_extraction = parseExtraction(content);
+      appendAuditEntry(createAuditEntry({ runId, taskId, model: extractionModel, step: 'EXTRACTION', orgId: params.orgId, documentId }));
     } catch {
       raw_extraction = stubExtraction();
     }
@@ -109,17 +122,20 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
   const libraryStr = Object.entries(libraryContext)
     .map(([k, v]) => `${k}: ${v}`)
     .join(', ');
-  const analysisPrompt = `Given extraction: ${JSON.stringify(raw_extraction)}. Apply these constants: ${libraryStr || 'none'}. Output a JSON array of items with: id, label, value (number), unit, citation_id.`;
+  const analysisBase = overrides.analysis ?? 'Given extraction: apply constants. Output a JSON array of items with: id, label, value (number), unit, citation_id.';
+  const analysisPrompt = `${analysisBase} Extraction: ${JSON.stringify(raw_extraction)}. Constants: ${libraryStr || 'none'}.`;
   let analysisItems: AuditItem[];
+  const analysisModel = getModelForStep('ANALYSIS');
 
   if (hasKey) {
     try {
       const content = await callOpenRouter({
-        model: getModelForStep('ANALYSIS'),
+        model: analysisModel,
         messages: [{ role: 'user', content: analysisPrompt }],
         max_tokens: 2048,
       });
       analysisItems = parseAnalysisItems(content);
+      appendAuditEntry(createAuditEntry({ runId, taskId, model: analysisModel, step: 'ANALYSIS', orgId: params.orgId, documentId }));
     } catch {
       analysisItems = stubAnalysis(raw_extraction).items;
     }
@@ -129,16 +145,19 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
 
   // Step 3: Synthesis + citation audit
   const audit = runCitationAudit(analysisItems, benchmarks);
-  const synthesisPrompt = `Format these analysis results as a short Markdown report. Items: ${JSON.stringify(analysisItems)}. ${audit.criticalWarnings.length > 0 ? `Add a CRITICAL WARNING section for: ${audit.criticalWarnings.map((w) => w.message).join('; ')}` : ''}`;
+  const synthesisBase = overrides.synthesis ?? 'Format these analysis results as a short Markdown report.';
+  const synthesisPrompt = `${synthesisBase} Items: ${JSON.stringify(analysisItems)}. ${audit.criticalWarnings.length > 0 ? `Add a CRITICAL WARNING section for: ${audit.criticalWarnings.map((w) => w.message).join('; ')}` : ''}`;
   let content_md: string;
+  const synthesisModel = getModelForStep('SYNTHESIS');
 
   if (hasKey) {
     try {
       content_md = await callOpenRouter({
-        model: getModelForStep('SYNTHESIS'),
+        model: synthesisModel,
         messages: [{ role: 'user', content: synthesisPrompt }],
         max_tokens: 2048,
       });
+      appendAuditEntry(createAuditEntry({ runId, taskId, model: synthesisModel, step: 'SYNTHESIS', orgId: params.orgId, documentId }));
     } catch {
       content_md = formatStubReport(analysisItems, audit);
     }
@@ -155,6 +174,7 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
   return {
     status: 'REVIEW_REQUIRED',
     taskId,
+    runId,
     raw_extraction,
     final_analysis: { items: analysisItems, synthesis },
     is_verified: false,

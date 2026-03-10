@@ -11,3 +11,42 @@ export {
   type AnalysisResult,
   type SynthesisResult,
 } from './orchestrator';
+export type {
+  AuditTrailEntry,
+  SourceSpan,
+  FindingWithGrounding,
+  RunHistoryItem,
+  ReviewQueueItem,
+  ReportTemplate,
+  BatchRunInput,
+  BatchRunResult,
+} from './types';
+export {
+  createAuditEntry,
+  appendAuditEntry,
+  getAuditLog,
+  getAuditLogForTask,
+} from './audit-trail';
+export {
+  isNeedsReview,
+  toReviewQueueItem,
+  filterNeedsReview,
+} from './review-queue';
+export {
+  appendRunHistory,
+  getRunHistory,
+  getRunHistoryForTask,
+} from './run-history';
+export {
+  exportToCSV,
+  downloadCSV,
+  exportToExcel,
+  exportToPDF,
+} from './export';
+export type { BatchPipelineResult } from './batch';
+export { runBatchPipeline } from './batch';
+export {
+  getTemplate,
+  listTemplates,
+  getPromptOverrides,
+} from './templates';

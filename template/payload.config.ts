@@ -8,7 +8,7 @@ import { Pages } from './collections/Pages';
 import { ExternalIntegrations } from './collections/ExternalIntegrations';
 import { SiteSettings } from './globals/SiteSettings';
 
-const databaseUrl = process.env.DATABASE_URI || process.env.DATABASE_URL;
+const databaseUrl = process.env.DATABASE_URL || process.env.DATABASE_URI;
 
 export default buildConfig({
   admin: {
