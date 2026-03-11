@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { buildConfig } from 'payload';
 import { postgresAdapter } from '@payloadcms/db-postgres';
 import sharp from 'sharp';
@@ -18,12 +19,13 @@ export default buildConfig({
   globals: [SiteSettings],
   secret: process.env.PAYLOAD_SECRET || 'change-me-in-production',
   typescript: {
-    outputFile: path.resolve(__dirname, 'payload-types.ts'),
+    outputFile: path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'payload-types.ts'),
   },
   db: postgresAdapter({
     pool: {
       connectionString: databaseUrl || 'postgresql://localhost:5432/payload',
     },
+    push: false, // use migrations so admin works without interactive Drizzle prompt
   }),
   sharp,
 });

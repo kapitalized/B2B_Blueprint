@@ -1,10 +1,11 @@
 /**
  * SEO module: page metadata with fallback to BRAND.
- * When Payload is used, replace static PAGES with a fetch from the Pages collection + SiteSettings global.
+ * Uses Payload Pages + Site Settings when available, else static PAGES.
  */
 
 import type { Metadata } from 'next';
 import { BRAND } from '@/lib/brand';
+import { getPageBySlug, getSiteSettings } from '@/lib/payload-content';
 
 export interface PageMeta {
   title?: string;
@@ -14,7 +15,7 @@ export interface PageMeta {
   robots?: 'index, follow' | 'noindex, nofollow';
 }
 
-/** Static page config. Replace with Payload fetch when CMS is ready. */
+/** Static page config; used when Payload has no page for the slug. */
 export const PAGES: Record<string, PageMeta> = {
   about: {
     title: 'About',
@@ -38,18 +39,28 @@ export const PAGES: Record<string, PageMeta> = {
   },
 };
 
-const SITE_TITLE = BRAND.name;
 const DEFAULT_DESCRIPTION = BRAND.slogan;
 
 /**
  * Returns Next.js Metadata for a marketing page by slug.
- * Merges page overrides with site defaults and BRAND fallback.
+ * Tries Payload (Pages + Site Settings) first, then static PAGES and BRAND.
  */
-export function getPageMetadata(slug: string): Metadata {
-  const page = PAGES[slug];
-  const title = page?.title ?? slug.charAt(0).toUpperCase() + slug.slice(1);
-  const description = page?.description ?? DEFAULT_DESCRIPTION;
-  const fullTitle = title.includes(SITE_TITLE) ? title : `${title} | ${BRAND.name}`;
+export async function getPageMetadata(slug: string): Promise<Metadata> {
+  const [cmsPage, siteSettings] = await Promise.all([
+    getPageBySlug(slug),
+    getSiteSettings(),
+  ]);
+
+  const siteTitle = siteSettings?.siteTitle ?? BRAND.name;
+  const titleTemplate = siteSettings?.titleTemplate ?? `%s | ${BRAND.name}`;
+  const defaultDesc = siteSettings?.defaultDescription ?? DEFAULT_DESCRIPTION;
+  const defaultOG = siteSettings?.defaultOGImage ?? BRAND.logo;
+
+  const title =
+    cmsPage?.metaTitle ?? cmsPage?.title ?? PAGES[slug]?.title ?? slug.charAt(0).toUpperCase() + slug.slice(1);
+  const description = cmsPage?.metaDescription ?? PAGES[slug]?.description ?? defaultDesc;
+  const fullTitle = title.includes(siteTitle) ? title : titleTemplate.replace('%s', title);
+  const robots = cmsPage?.indexPage === false ? 'noindex, nofollow' : (PAGES[slug]?.robots ?? 'index, follow');
 
   return {
     title: fullTitle,
@@ -58,19 +69,17 @@ export function getPageMetadata(slug: string): Metadata {
       ? new URL(process.env.NEXT_PUBLIC_APP_URL)
       : undefined,
     openGraph: {
-      title: page?.openGraph?.title ?? fullTitle,
-      description: page?.openGraph?.description ?? description,
-      images: page?.openGraph?.images?.length
-        ? page.openGraph.images
-        : [BRAND.logo].filter(Boolean),
+      title: fullTitle,
+      description,
+      images: defaultOG ? [defaultOG] : [],
     },
     twitter: {
       card: 'summary_large_image',
       title: fullTitle,
       description,
     },
-    alternates: page?.canonical ? { canonical: page.canonical } : undefined,
-    robots: page?.robots ?? 'index, follow',
+    alternates: cmsPage?.canonicalUrl ? { canonical: cmsPage.canonicalUrl } : undefined,
+    robots,
   };
 }
 

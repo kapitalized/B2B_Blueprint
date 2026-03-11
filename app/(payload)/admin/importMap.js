@@ -1,5 +1,5 @@
-// Payload admin custom components. Add imports as you customize the admin UI.
-// See: https://payloadcms.com/docs/admin/overview
-// Using empty map so Payload uses built-in components; add entries when customizing.
+import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
-export const importMap = {};
+export const importMap = {
+  "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
+}

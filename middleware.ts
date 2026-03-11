@@ -14,7 +14,16 @@ function isDashboard(pathname: string) {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  // So root layout can avoid wrapping /admin with <html><body> (Payload provides its own)
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', pathname);
+
   try {
+    // Payload admin: no auth, just pass pathname so root layout can skip html/body
+    if (pathname.startsWith('/admin')) {
+      return NextResponse.next({ request: { headers: requestHeaders } });
+    }
+
     const baseUrl = process.env.NEON_AUTH_BASE_URL;
     const cookieSecret = process.env.NEON_AUTH_COOKIE_SECRET;
     const neonConfigured = !!(baseUrl && cookieSecret);
@@ -27,7 +36,7 @@ export async function middleware(request: NextRequest) {
         loginUrl.searchParams.set('next', pathname);
         return NextResponse.redirect(loginUrl);
       }
-      return NextResponse.next({ request });
+      return NextResponse.next({ request: { headers: requestHeaders } });
     }
 
     const { updateSession } = await import('@/lib/supabase/middleware');
@@ -48,6 +57,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|admin|api).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api).*)',
   ],
 };

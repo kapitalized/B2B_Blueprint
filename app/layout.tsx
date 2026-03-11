@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { BRAND } from '@/lib/brand';
 import './globals.css';
 
@@ -11,11 +12,15 @@ export const metadata: Metadata = {
   icons: { icon: '/favicon.ico', shortcut: '/favicon.ico', apple: BRAND.logo },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = (await headers()).get('x-pathname') ?? '';
+  if (pathname.startsWith('/admin')) {
+    return <>{children}</>;
+  }
   return (
     <html lang="en">
       <body>{children}</body>

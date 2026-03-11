@@ -1,8 +1,11 @@
 /**
  * Server-side bridge to the FastAPI Math Engine. See blueprint @17_python_client.
+ * When PYTHON_ENGINE_URL is not set (e.g. on Vercel), runs the same logic in-app so no separate server is needed.
  */
 
-const PYTHON_ENGINE_URL = process.env.PYTHON_ENGINE_URL ?? 'http://localhost:8000';
+import { runCalculate } from '@/lib/calculate-engine';
+
+const PYTHON_ENGINE_URL = process.env.PYTHON_ENGINE_URL;
 const INTERNAL_SERVICE_KEY = process.env.INTERNAL_SERVICE_KEY;
 
 export interface PythonEngineResponse<T = unknown> {
@@ -20,6 +23,14 @@ export async function callPythonEngine<T = unknown>(
   endpoint: string,
   payload: { data: unknown[]; parameters: Record<string, unknown> }
 ): Promise<PythonEngineResponse<T>> {
+  const data = Array.isArray(payload.data) ? payload.data : [];
+  const parameters = payload.parameters ?? { thickness: 0.2 };
+
+  if (!PYTHON_ENGINE_URL || PYTHON_ENGINE_URL.trim() === '') {
+    const result = runCalculate({ data, parameters });
+    return result as PythonEngineResponse<T>;
+  }
+
   if (!INTERNAL_SERVICE_KEY) {
     console.error('CRITICAL: INTERNAL_SERVICE_KEY is missing.');
     throw new Error('Internal Configuration Error');
