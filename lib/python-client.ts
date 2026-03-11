@@ -28,7 +28,7 @@ export async function callPythonEngine<T = unknown>(
 
   if (!PYTHON_ENGINE_URL || PYTHON_ENGINE_URL.trim() === '') {
     const result = runCalculate({ data, parameters });
-    return result as PythonEngineResponse<T>;
+    return result as unknown as PythonEngineResponse<T>;
   }
 
   if (!INTERNAL_SERVICE_KEY) {
