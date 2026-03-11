@@ -32,8 +32,8 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b px-6 py-3 flex items-center justify-between bg-card">
-        <Link href="/dashboard" className="font-bold" style={{ color: BRAND.colors.primary }}>
-          {BRAND.name}
+        <Link href="/dashboard" className="flex items-center" style={{ color: BRAND.colors.primary }}>
+          <img src={BRAND.logo} alt={BRAND.name} className="h-7 w-auto" />
         </Link>
         <nav className="flex items-center gap-4">
           <Link href="/dashboard/ai/chat" className="text-sm text-muted-foreground hover:text-foreground">

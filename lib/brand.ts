@@ -4,7 +4,7 @@
 
 export const BRAND = {
   name: 'ConstructAI',
-  logo: '/logo.svg',
+  logo: '/logo.png',
   colors: { primary: '#2563eb', secondary: '#64748b' },
   slogan: 'Precision AI for Technical Industries',
 } as const;

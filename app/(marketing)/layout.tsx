@@ -16,8 +16,8 @@ export default function MarketingLayout({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <header className="border-b px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="font-bold text-lg" style={{ color: BRAND.colors.primary }}>
-          {BRAND.name}
+        <Link href="/" className="flex items-center" style={{ color: BRAND.colors.primary }}>
+          <img src={BRAND.logo} alt={BRAND.name} className="h-8 w-auto" />
         </Link>
         <nav className="flex items-center gap-6">
           <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">

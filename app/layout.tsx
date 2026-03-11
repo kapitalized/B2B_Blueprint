@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     template: `%s | ${BRAND.name}`,
   },
   description: BRAND.slogan,
-  icons: { icon: BRAND.logo },
+  icons: { icon: '/favicon.ico', shortcut: '/favicon.ico', apple: BRAND.logo },
 };
 
 export default function RootLayout({

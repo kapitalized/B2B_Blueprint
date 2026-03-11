@@ -9,10 +9,8 @@ export default function AuthLayout({
     <div className="min-h-screen flex flex-col items-center justify-center bg-muted/20 p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-xl font-bold" style={{ color: BRAND.colors.primary }}>
-            {BRAND.name}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">{BRAND.slogan}</p>
+          <img src={BRAND.logo} alt={BRAND.name} className="h-10 w-auto mx-auto" />
+          <p className="text-sm text-muted-foreground mt-3">{BRAND.slogan}</p>
         </div>
         {children}
       </div>
