@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { authClient, isNeonAuthClientConfigured } from '@/lib/auth/client';
 import { createClient } from '@/lib/supabase/client';
 
@@ -19,6 +19,8 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,44 +28,53 @@ function LoginForm() {
 
     if (isNeonAuthClientConfigured() && authClient) {
       setLoading(true);
-      const { error: signInError } = await authClient.signIn.email({
-        email,
-        password,
-        callbackURL: next,
-      });
-      setLoading(false);
-      if (signInError) {
-        setError(signInError.message ?? 'Sign in failed');
-        return;
+      try {
+        const { error: signInError } = await authClient.signIn.email({
+          email,
+          password,
+          callbackURL: next,
+        });
+        if (signInError) {
+          setError(signInError.message ?? 'Invalid email or password.');
+          return;
+        }
+        router.push(next);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Sign in failed.');
+      } finally {
+        setLoading(false);
       }
-      router.push(next);
-      router.refresh();
       return;
     }
 
     if (supabaseConfigured()) {
       setLoading(true);
-      const client = createClient();
-      if (!client) {
-        setError('Supabase client not available.');
+      try {
+        const client = createClient();
+        if (!client) {
+          setError('Supabase client not available.');
+          return;
+        }
+        const { error: signInError } = await client.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          setError(signInError.message);
+          return;
+        }
+        router.push(next);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Sign in failed.');
+      } finally {
         setLoading(false);
-        return;
       }
-      const { error: signInError } = await client.auth.signInWithPassword({ email, password });
-      setLoading(false);
-      if (signInError) {
-        setError(signInError.message);
-        return;
-      }
-      router.push(next);
-      router.refresh();
       return;
     }
 
     setError('No auth configured. Set Neon Auth (NEON_AUTH_BASE_URL, NEON_AUTH_COOKIE_SECRET) or Supabase env vars.');
   }
 
-  if (!isNeonAuthClientConfigured() && !supabaseConfigured()) {
+  if (mounted && !isNeonAuthClientConfigured() && !supabaseConfigured()) {
     return (
       <div className="rounded-xl border bg-card p-6 shadow-sm">
         <h2 className="text-lg font-semibold">Log in</h2>
@@ -81,7 +92,7 @@ function LoginForm() {
     <div className="rounded-xl border bg-card p-6 shadow-sm">
       <h2 className="text-lg font-semibold">Log in</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        {isNeonAuthClientConfigured() ? 'Sign in with Neon Auth (base stack).' : 'Sign in with Supabase Auth.'}
+        Log in to your account.
       </p>
       <form onSubmit={handleSubmit} className="mt-4 space-y-3">
         <div>
@@ -128,7 +139,7 @@ function LoginForm() {
         </button>
       </form>
       <p className="mt-4 text-center text-xs text-muted-foreground">
-        {isNeonAuthClientConfigured() ? 'Create users via Neon Auth (Neon Console) or sign-up flow.' : 'Create users in Supabase Dashboard → Authentication → Users.'}
+        Create users in Neon Console (Auth) or Supabase Dashboard → Authentication.
       </p>
     </div>
   );
