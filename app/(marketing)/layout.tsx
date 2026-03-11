@@ -20,33 +20,33 @@ export default function MarketingLayout({
           <img src={BRAND.logo} alt={BRAND.name} className="h-8 w-auto" />
         </Link>
         <nav className="flex items-center gap-6">
-          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
+          <Link href="/" className="text-base text-muted-foreground hover:text-foreground">
             Home
           </Link>
-          <Link href="/features" className="text-sm text-muted-foreground hover:text-foreground">
+          <Link href="/features" className="text-base text-muted-foreground hover:text-foreground">
             Features
           </Link>
-          <Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground">
+          <Link href="/pricing" className="text-base text-muted-foreground hover:text-foreground">
             Pricing
           </Link>
-          <Link href="/about" className="text-sm text-muted-foreground hover:text-foreground">
+          <Link href="/about" className="text-base text-muted-foreground hover:text-foreground">
             About
           </Link>
-          <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground">
+          <Link href="/contact" className="text-base text-muted-foreground hover:text-foreground">
             Contact
           </Link>
-          <Link href="/setup" className="text-sm text-muted-foreground hover:text-foreground">
+          <Link href="/setup" className="text-base text-muted-foreground hover:text-foreground">
             Setup
           </Link>
-          <Link href="/admin" className="text-sm text-muted-foreground hover:text-foreground">
+          <Link href="/admin" className="text-base text-muted-foreground hover:text-foreground">
             Admin
           </Link>
-          <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+          <Link href="/login" className="text-base font-medium text-muted-foreground hover:text-foreground">
             Log in
           </Link>
           <Link
             href="/dashboard"
-            className="text-sm font-semibold px-4 py-2 rounded-lg text-white hover:opacity-90"
+            className="text-base font-semibold px-4 py-2 rounded-lg text-white hover:opacity-90"
             style={{ backgroundColor: BRAND.colors.primary }}
           >
             Get started
@@ -56,10 +56,10 @@ export default function MarketingLayout({
       <main className="flex-1">{children}</main>
       <footer className="border-t px-6 py-8">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-4">
-          <span className="text-sm text-muted-foreground">
+          <span className="text-base text-muted-foreground">
             © {new Date().getFullYear()} {BRAND.name}. {BRAND.slogan}
           </span>
-          <nav className="flex gap-6 text-sm text-muted-foreground">
+          <nav className="flex gap-6 text-base text-muted-foreground">
             <Link href="/about" className="hover:text-foreground">About</Link>
             <Link href="/features" className="hover:text-foreground">Features</Link>
             <Link href="/pricing" className="hover:text-foreground">Pricing</Link>

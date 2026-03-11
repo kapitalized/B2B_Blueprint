@@ -24,6 +24,11 @@
   }
 }
 
+/* Base font 2pt larger: 16px -> 18px (2pt ≈ 2.67px) */
+html {
+  font-size: 18px;
+}
+
 body {
   @apply bg-background text-foreground antialiased;
 }
