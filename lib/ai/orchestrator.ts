@@ -8,6 +8,7 @@ import { callOpenRouter, isOpenRouterConfigured } from './openrouter';
 import { runCitationAudit, type AuditItem, type Benchmark } from './citation-audit';
 import { createAuditEntry, appendAuditEntry } from './audit-trail';
 import { getPromptOverrides } from './templates';
+import { callPythonEngine } from '@/lib/python-client';
 import type { SourceSpan } from './types';
 
 export const TASK_STATUSES = [
@@ -96,17 +97,21 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
   const hasKey = isOpenRouterConfigured();
   const overrides = templateId ? getPromptOverrides(templateId) : {};
 
-  // Step 1: Vision extraction
-  const extractionBase = overrides?.extraction ?? 'Extract from the following source as structured JSON. For each item include: id, label, confidence_score (0-1), and coordinate_polygons if spatial.';
-  const extractionPrompt = `${extractionBase} Source: ${sourceContent ?? '[No content: add fileUrl or sourceContent]'}`;
+  // Step 1: Vision or text extraction
+  const extractionBase = overrides?.extraction ?? 'Extract from the following source as structured JSON. For each item include: id, label, confidence_score (0-1), and coordinate_polygons if spatial. If the source is an image (floorplan/drawing), also estimate area_m2 when possible.';
+  const sourceText = sourceContent ?? (params.fileUrl ? 'See attached image.' : '[No content: add fileUrl or sourceContent]');
+  const extractionPrompt = `${extractionBase} Source: ${sourceText}`;
   let raw_extraction: ExtractionResult;
   const extractionModel = getModelForStep('EXTRACTION');
 
   if (hasKey) {
     try {
+      const messages = params.fileUrl
+        ? [{ role: 'user' as const, content: [{ type: 'text' as const, text: extractionPrompt }, { type: 'image_url' as const, image_url: { url: params.fileUrl } }] }]
+        : [{ role: 'user' as const, content: extractionPrompt }];
       const content = await callOpenRouter({
         model: extractionModel,
-        messages: [{ role: 'user', content: extractionPrompt }],
+        messages,
         max_tokens: 2048,
       });
       raw_extraction = parseExtraction(content);
@@ -118,29 +123,55 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
     raw_extraction = stubExtraction();
   }
 
-  // Step 2: Reasoning analysis (apply library constants, math)
+  type PythonResultItem = { id?: string; label: string; area_m2: number; volume_m3: number; verified?: boolean };
+  const thickness = typeof params.libraryContext?.thickness === 'number' ? params.libraryContext.thickness : 0.2;
+  let pythonResults: PythonResultItem[] | null = null;
+  if (params.fileUrl && raw_extraction.items.length > 0) {
+    try {
+      const payload = {
+        data: raw_extraction.items.map((i) => ({ id: i.id, label: i.label, area: (i as { area_m2?: number }).area_m2 ?? 0, url: params.fileUrl })),
+        parameters: { thickness },
+      };
+      const py = await callPythonEngine<PythonResultItem[]>('/calculate', payload);
+      if (py.status === 'success' && Array.isArray(py.results)) pythonResults = py.results;
+    } catch {
+      // continue without Python numbers
+    }
+  }
+
+  // Step 2: Reasoning analysis (use Python results when available, else LLM)
   const libraryStr = Object.entries(libraryContext)
     .map(([k, v]) => `${k}: ${v}`)
     .join(', ');
-  const analysisBase = overrides?.analysis ?? 'Given extraction: apply constants. Output a JSON array of items with: id, label, value (number), unit, citation_id.';
-  const analysisPrompt = `${analysisBase} Extraction: ${JSON.stringify(raw_extraction)}. Constants: ${libraryStr || 'none'}.`;
   let analysisItems: AuditItem[];
-  const analysisModel = getModelForStep('ANALYSIS');
-
-  if (hasKey) {
-    try {
-      const content = await callOpenRouter({
-        model: analysisModel,
-        messages: [{ role: 'user', content: analysisPrompt }],
-        max_tokens: 2048,
-      });
-      analysisItems = parseAnalysisItems(content);
-      appendAuditEntry(createAuditEntry({ runId, taskId, model: analysisModel, step: 'ANALYSIS', orgId: params.orgId, documentId }));
-    } catch {
+  if (pythonResults && pythonResults.length > 0) {
+    analysisItems = pythonResults.map((r) => ({
+      id: r.id ?? r.label,
+      label: r.label,
+      value: r.area_m2,
+      unit: 'm²' as const,
+      citation_id: r.id ?? r.label,
+      coordinate_set: undefined,
+    }));
+  } else {
+    const analysisBase = overrides?.analysis ?? 'Given extraction: apply constants. Output a JSON array of items with: id, label, value (number), unit, citation_id.';
+    const analysisPrompt = `${analysisBase} Extraction: ${JSON.stringify(raw_extraction)}. Constants: ${libraryStr || 'none'}.`;
+    const analysisModel = getModelForStep('ANALYSIS');
+    if (hasKey) {
+      try {
+        const content = await callOpenRouter({
+          model: analysisModel,
+          messages: [{ role: 'user', content: analysisPrompt }],
+          max_tokens: 2048,
+        });
+        analysisItems = parseAnalysisItems(content);
+        appendAuditEntry(createAuditEntry({ runId, taskId, model: analysisModel, step: 'ANALYSIS', orgId: params.orgId, documentId }));
+      } catch {
+        analysisItems = stubAnalysis(raw_extraction).items;
+      }
+    } else {
       analysisItems = stubAnalysis(raw_extraction).items;
     }
-  } else {
-    analysisItems = stubAnalysis(raw_extraction).items;
   }
 
   // Step 3: Synthesis + citation audit
