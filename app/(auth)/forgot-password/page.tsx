@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState, useEffect } from 'react';
 import { authClient, isNeonAuthClientConfigured } from '@/lib/auth/client';
 import { createClient } from '@/lib/supabase/client';
@@ -11,13 +10,10 @@ const supabaseConfigured = () =>
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-function LoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const next = searchParams.get('next') || '/dashboard';
+function ForgotPasswordForm() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -25,23 +21,26 @@ function LoginForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setSuccess(false);
 
     if (isNeonAuthClientConfigured() && authClient) {
       setLoading(true);
       try {
-        const { error: signInError } = await authClient.signIn.email({
-          email,
-          password,
-          callbackURL: next,
+        const redirectTo =
+          typeof window !== 'undefined'
+            ? `${window.location.origin}/reset-password`
+            : '/reset-password';
+        const { error: resetError } = await (authClient as { requestPasswordReset?: (opts: { email: string; redirectTo?: string }) => Promise<{ error?: { message?: string } }> }).requestPasswordReset?.({
+          email: email.trim(),
+          redirectTo,
         });
-        if (signInError) {
-          setError(signInError.message ?? 'Invalid email or password.');
+        if (resetError) {
+          setError(resetError.message ?? 'Request failed.');
           return;
         }
-        router.push(next);
-        router.refresh();
+        setSuccess(true);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Sign in failed.');
+        setError(err instanceof Error ? err.message : 'Request failed.');
       } finally {
         setLoading(false);
       }
@@ -56,33 +55,46 @@ function LoginForm() {
           setError('Supabase client not available.');
           return;
         }
-        const { error: signInError } = await client.auth.signInWithPassword({ email, password });
-        if (signInError) {
-          setError(signInError.message);
+        const { error: resetError } = await client.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/reset-password` : undefined,
+        });
+        if (resetError) {
+          setError(resetError.message);
           return;
         }
-        router.push(next);
-        router.refresh();
+        setSuccess(true);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Sign in failed.');
+        setError(err instanceof Error ? err.message : 'Request failed.');
       } finally {
         setLoading(false);
       }
       return;
     }
 
-    setError('No auth configured. Set Neon Auth (NEON_AUTH_BASE_URL, NEON_AUTH_COOKIE_SECRET) or Supabase env vars.');
+    setError('No auth configured.');
   }
 
   if (mounted && !isNeonAuthClientConfigured() && !supabaseConfigured()) {
     return (
       <div className="rounded-xl border bg-card p-6 shadow-sm">
-        <h2 className="text-lg font-semibold">Log in</h2>
+        <h2 className="text-lg font-semibold">Forgot password</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Configure Neon Auth or Supabase to use password reset.</p>
+        <Link href="/login" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+          Back to Log in
+        </Link>
+      </div>
+    );
+  }
+
+  if (success) {
+    return (
+      <div className="rounded-xl border bg-card p-6 shadow-sm">
+        <h2 className="text-lg font-semibold">Check your email</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Base stack: set <code className="rounded bg-muted px-1">NEON_AUTH_BASE_URL</code> and <code className="rounded bg-muted px-1">NEON_AUTH_COOKIE_SECRET</code> in .env.local (see /setup). Alternative: Supabase auth with <code className="rounded bg-muted px-1">NEXT_PUBLIC_SUPABASE_*</code>.
+          If an account exists for that email, we&apos;ve sent a link to reset your password.
         </p>
-        <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
-          Continue to Dashboard (no auth) →
+        <Link href="/login" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+          Back to Log in
         </Link>
       </div>
     );
@@ -90,9 +102,9 @@ function LoginForm() {
 
   return (
     <div className="rounded-xl border bg-card p-6 shadow-sm">
-      <h2 className="text-lg font-semibold">Log in</h2>
+      <h2 className="text-lg font-semibold">Forgot password</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Log in to your account.
+        Enter your email and we&apos;ll send a reset link.
       </p>
       <form onSubmit={handleSubmit} className="mt-4 space-y-3">
         <div>
@@ -111,52 +123,29 @@ function LoginForm() {
             disabled={loading}
           />
         </div>
-        <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-            disabled={loading}
-          />
-        </div>
-        {error && (
-          <p className="text-sm text-red-600">{error}</p>
-        )}
-        <div className="flex justify-end">
-          <Link href="/forgot-password" className="text-xs text-primary hover:underline">
-            Forgot password?
-          </Link>
-        </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="submit"
           disabled={loading}
           className="w-full rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           style={{ backgroundColor: 'var(--brand-primary, #2563eb)' }}
         >
-          {loading ? 'Signing in…' : 'Sign in'}
+          {loading ? 'Sending…' : 'Send reset link'}
         </button>
       </form>
       <p className="mt-4 text-center text-sm text-muted-foreground">
-        Don&apos;t have an account?{' '}
-        <Link href="/sign-up" className="font-medium text-primary hover:underline">
-          Create account
+        <Link href="/login" className="font-medium text-primary hover:underline">
+          Back to Log in
         </Link>
       </p>
     </div>
   );
 }
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   return (
     <Suspense fallback={<div className="rounded-xl border bg-card p-6 shadow-sm animate-pulse h-48" />}>
-      <LoginForm />
+      <ForgotPasswordForm />
     </Suspense>
   );
 }
