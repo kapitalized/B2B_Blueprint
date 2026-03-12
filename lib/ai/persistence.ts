@@ -6,12 +6,23 @@ import { db } from '@/lib/db';
 import { ai_digests, ai_analyses, report_generated } from '@/lib/db/schema';
 import type { PipelineResult } from './orchestrator';
 
+export interface RunMetadata {
+  runStartedAt?: Date;
+  runDurationMs?: number;
+  inputSizeBytes?: number;
+  inputPageCount?: number;
+  tokenUsage?: Record<string, unknown>;
+}
+
 export interface PersistPipelineParams {
   projectId: string;
   fileId?: string | null;
   result: PipelineResult;
   reportTitle?: string;
   reportType?: string;
+  runMetadata?: RunMetadata;
+  /** Model ids used for this run (snapshot from getAIModelConfig()). */
+  modelsUsed?: { extraction?: string; analysis?: string; synthesis?: string };
 }
 
 /** Save pipeline result to ai_digests, ai_analyses, and report_generated. */
@@ -20,7 +31,9 @@ export async function persistPipelineResult(params: PersistPipelineParams): Prom
   analysisId: string;
   reportId: string;
 }> {
-  const { projectId, fileId, result, reportTitle = 'AI Analysis Report', reportType = 'quantity_takeoff' } = params;
+  const { projectId, fileId, result, reportTitle = 'AI Analysis Report', reportType = 'quantity_takeoff', runMetadata, modelsUsed } = params;
+  const tokenUsage = result.tokenUsage ? (result.tokenUsage as unknown as Record<string, unknown>) : null;
+  const modelsUsedJson = modelsUsed ? (modelsUsed as unknown as Record<string, unknown>) : null;
 
   const [digest] = await db
     .insert(ai_digests)
@@ -46,6 +59,12 @@ export async function persistPipelineResult(params: PersistPipelineParams): Prom
       analysisType: reportType,
       analysisResult: analysisPayload as unknown as Record<string, unknown>,
       inputSourceIds: fileId ? [fileId] : [],
+      runStartedAt: runMetadata?.runStartedAt ?? null,
+      runDurationMs: runMetadata?.runDurationMs ?? null,
+      inputSizeBytes: runMetadata?.inputSizeBytes ?? null,
+      inputPageCount: runMetadata?.inputPageCount ?? null,
+      tokenUsage: tokenUsage ?? null,
+      modelsUsed: modelsUsedJson ?? null,
     })
     .returning({ id: ai_analyses.id });
   if (!analysis?.id) throw new Error('Failed to insert analysis');

@@ -15,6 +15,22 @@ export interface ReportForViewer {
   content?: string | null;
   data_payload?: unknown[];
   createdAt?: string | null;
+  runMetadata?: {
+    runStartedAt?: string;
+    runDurationMs?: number;
+    inputSizeBytes?: number;
+    inputSizeMb?: number;
+    inputPageCount?: number;
+    tokenUsage?: {
+      total_tokens?: number;
+      total_prompt_tokens?: number;
+      total_completion_tokens?: number;
+      total_cost?: number;
+      extraction?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+      analysis?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+      synthesis?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+    };
+  };
 }
 
 interface AIReportViewerProps {
@@ -40,6 +56,9 @@ export default function AIReportViewer({ report, isLoading }: AIReportViewerProp
     ? payload.filter(isAuditItem) as AuditItem[]
     : [];
 
+  const run = report?.runMetadata;
+  const runAt = run?.runStartedAt ? new Date(run.runStartedAt) : null;
+
   return (
     <div className="rounded-xl border bg-card p-4 space-y-6">
       <div className="flex items-center justify-between">
@@ -54,6 +73,22 @@ export default function AIReportViewer({ report, isLoading }: AIReportViewerProp
           </button>
         )}
       </div>
+      {run && (runAt || run.runDurationMs != null || run.inputSizeMb != null || run.inputPageCount != null || run.tokenUsage) && (
+        <div className="text-sm text-muted-foreground border rounded-lg p-3 bg-muted/30 space-y-1">
+          <span className="font-medium text-foreground">Run log</span>
+          <ul className="flex flex-wrap gap-x-4 gap-y-0.5">
+            {runAt && <li>Run at: {runAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</li>}
+            {run.runDurationMs != null && <li>Duration: {(run.runDurationMs / 1000).toFixed(1)}s</li>}
+            {run.inputSizeMb != null && <li>Input: {run.inputSizeMb} MB</li>}
+            {run.inputPageCount != null && <li>Pages: {run.inputPageCount}</li>}
+            {run.tokenUsage?.total_tokens != null && (
+              <li>Tokens: {run.tokenUsage.total_tokens.toLocaleString()}
+                {run.tokenUsage.total_cost != null && ` · $${run.tokenUsage.total_cost.toFixed(4)}`}
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
       {content ? (
         <div className="prose prose-sm dark:prose-invert max-w-none">
           <ReactMarkdown>{content}</ReactMarkdown>

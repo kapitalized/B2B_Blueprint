@@ -4,9 +4,10 @@
 import { NextResponse } from 'next/server';
 import { getSessionForApi } from '@/lib/auth/session';
 import { db } from '@/lib/db';
-import { chat_threads, chat_messages, project_main, ai_analyses } from '@/lib/db/schema';
+import { chat_threads, chat_messages, project_main, project_files, ai_analyses } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { callOpenRouter, isOpenRouterConfigured } from '@/lib/ai/openrouter';
+import { getAIModelConfig } from '@/lib/ai/model-config';
 
 async function ensureThreadAccess(threadId: string, userId: string): Promise<{ thread: { id: string; projectId: string } } | null> {
   const [thread] = await db
@@ -54,21 +55,46 @@ export async function POST(
   if (!content) return NextResponse.json({ error: 'content required' }, { status: 400 });
 
   const projectId = access.thread.projectId;
+  const [project] = await db
+    .select({
+      projectName: project_main.projectName,
+      projectDescription: project_main.projectDescription,
+      projectObjectives: project_main.projectObjectives,
+    })
+    .from(project_main)
+    .where(eq(project_main.id, projectId));
+  const files = await db
+    .select({ fileName: project_files.fileName, fileType: project_files.fileType })
+    .from(project_files)
+    .where(eq(project_files.projectId, projectId));
   const analyses = await db
     .select({ analysisResult: ai_analyses.analysisResult })
     .from(ai_analyses)
     .where(eq(ai_analyses.projectId, projectId))
     .orderBy(desc(ai_analyses.createdAt))
     .limit(10);
-  const contextParts = analyses.map((a) => {
+  const analysisParts = analyses.map((a) => {
     const r = a.analysisResult as { items?: Array<{ label?: string; value?: number; unit?: string }>; synthesis?: { content_md?: string } };
     if (r.synthesis?.content_md) return r.synthesis.content_md;
     if (Array.isArray(r.items)) return r.items.map((i) => `${i.label}: ${i.value} ${i.unit ?? ''}`).join('\n');
     return JSON.stringify(r);
   });
-  const ragContext = contextParts.length > 0
-    ? `Project context (recent analyses):\n${contextParts.join('\n\n')}`
-    : 'No project analyses yet.';
+  const refLines: string[] = [];
+  refLines.push(`Project: ${project?.projectName ?? 'Unnamed'}`);
+  if (project?.projectDescription) refLines.push(`Description: ${project.projectDescription}`);
+  if (project?.projectObjectives) refLines.push(`Objectives: ${project.projectObjectives}`);
+  if (files.length > 0) {
+    refLines.push('Uploaded documents: ' + files.map((f) => `${f.fileName} (${f.fileType})`).join(', '));
+  } else {
+    refLines.push('Uploaded documents: none yet.');
+  }
+  if (analysisParts.length > 0) {
+    refLines.push('Reports and analyses (reference):');
+    refLines.push(analysisParts.join('\n\n'));
+  } else {
+    refLines.push('Reports and analyses: none yet.');
+  }
+  const ragContext = `Reference — use this when answering:\n${refLines.join('\n')}`;
 
   const existing = await db
     .select({ role: chat_messages.role, content: chat_messages.content })
@@ -81,16 +107,18 @@ export async function POST(
   let assistantContent: string;
   if (isOpenRouterConfigured()) {
     try {
+      const modelConfig = await getAIModelConfig();
       const messages = [
-        { role: 'system' as const, content: `You are a helpful assistant for a construction/estimation app. Use this context when relevant:\n${ragContext}` },
+        { role: 'system' as const, content: `You are a helpful assistant for a construction/estimation app. Answer using only the following reference (uploaded docs, reports, and the user's messages). If something is not in the reference, say so.\n\n${ragContext}` },
         ...existing.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
         { role: 'user' as const, content },
       ];
-      assistantContent = await callOpenRouter({
-        model: 'openai/gpt-4o-mini',
+      const { content } = await callOpenRouter({
+        model: modelConfig.chat,
         messages,
         max_tokens: 1024,
       });
+      assistantContent = content;
     } catch {
       assistantContent = 'Sorry, I could not generate a response. Please try again.';
     }

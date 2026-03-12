@@ -16,6 +16,7 @@ export default async function DashboardLayout({
 
   if (isNeonAuthConfigured()) {
     try {
+      // Pass headers so session is resolved from request cookies (required for correct session in Node)
       const session = await getSessionForLayout(await headers());
       user = session?.user ? { email: session.user.email } : null;
     } catch {

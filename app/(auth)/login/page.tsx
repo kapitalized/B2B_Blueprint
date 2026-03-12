@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useActionState } from 'react';
 import { authClient, isNeonAuthClientConfigured } from '@/lib/auth/client';
 import { createClient } from '@/lib/supabase/client';
+import { signInWithEmailNeon } from './actions';
 
 const supabaseConfigured = () =>
   typeof process !== 'undefined' &&
@@ -16,91 +17,59 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get('next') || '/dashboard';
   const reason = searchParams.get('reason');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [redirecting, setRedirecting] = useState(false);
-  const [showFallbackLink, setShowFallbackLink] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [supabaseLoading, setSupabaseLoading] = useState(false);
+  const [state, formAction, isPending] = useActionState(signInWithEmailNeon, null);
+  const useNeon = mounted && isNeonAuthClientConfigured();
+
   useEffect(() => setMounted(true), []);
   useEffect(() => {
     if (reason === 'session') setError('Your session expired or you need to sign in.');
   }, [reason]);
-
   useEffect(() => {
-    if (!redirecting) return;
-    const t = setTimeout(() => setShowFallbackLink(true), 2500);
-    return () => clearTimeout(t);
-  }, [redirecting]);
+    if (state?.error) setError(state.error);
+  }, [state]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmitSupabase(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
-
-    if (isNeonAuthClientConfigured() && authClient) {
-      setLoading(true);
-      try {
-        const res = await authClient.signIn.email({
-          email,
-          password,
-          callbackURL: next,
-        });
-        const signInError = res?.error;
-        if (signInError) {
-          setError(signInError.message ?? 'Invalid email or password.');
-          return;
-        }
-        const target = next.startsWith('/') ? next : `/${next}`;
-        const redirectUrl =
-          (res as { url?: string })?.url ??
-          (res as { data?: { url?: string } })?.data?.url ??
-          null;
-        let goTo = target;
-        if (redirectUrl) {
-          if (redirectUrl.startsWith('/')) goTo = redirectUrl;
-          else try {
-            if (new URL(redirectUrl).origin === window.location.origin) goTo = redirectUrl;
-          } catch {
-            /* use target */
-          }
-        }
-        window.location.href = goTo;
-        setRedirecting(true);
+    if (!supabaseConfigured()) {
+      setError('No auth configured.');
+      return;
+    }
+    const form = e.currentTarget;
+    const email = form.querySelector<HTMLInputElement>('[name=email]')?.value ?? '';
+    const password = form.querySelector<HTMLInputElement>('[name=password]')?.value ?? '';
+    setSupabaseLoading(true);
+    try {
+      const client = createClient();
+      if (!client) {
+        setError('Supabase client not available.');
         return;
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Sign in failed.');
-      } finally {
-        setLoading(false);
       }
-      return;
-    }
-
-    if (supabaseConfigured()) {
-      setLoading(true);
-      try {
-        const client = createClient();
-        if (!client) {
-          setError('Supabase client not available.');
-          return;
-        }
-        const { error: signInError } = await client.auth.signInWithPassword({ email, password });
-        if (signInError) {
-          setError(signInError.message);
-          return;
-        }
-        router.push(next);
-        router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Sign in failed.');
-      } finally {
-        setLoading(false);
+      const { error: signInError } = await client.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        setError(signInError.message);
+        return;
       }
-      return;
+      router.push(next);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign in failed.');
+    } finally {
+      setSupabaseLoading(false);
     }
-
-    setError('No auth configured. Set Neon Auth (NEON_AUTH_BASE_URL, NEON_AUTH_COOKIE_SECRET) or Supabase env vars.');
   }
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    if (supabaseConfigured() && !useNeon) {
+      e.preventDefault();
+      handleSubmitSupabase(e);
+    }
+  }
+
+  const loading = useNeon ? isPending : supabaseLoading;
 
   if (mounted && !isNeonAuthClientConfigured() && !supabaseConfigured()) {
     return (
@@ -127,16 +96,20 @@ function LoginForm() {
           Use the same browser URL for the whole session (e.g. {window.location.origin}).
         </p>
       )}
-      <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+      <form
+        action={useNeon ? formAction : undefined}
+        onSubmit={handleSubmit}
+        className="mt-4 space-y-3"
+      >
+        {useNeon && <input type="hidden" name="next" value={next} />}
         <div>
           <label htmlFor="email" className="mb-1 block text-sm font-medium">
             Email
           </label>
           <input
             id="email"
+            name="email"
             type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             required
             autoComplete="email"
             className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
@@ -150,9 +123,8 @@ function LoginForm() {
           </label>
           <input
             id="password"
+            name="password"
             type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
             className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
@@ -161,20 +133,6 @@ function LoginForm() {
         </div>
         {error && (
           <p className="text-sm text-red-600">{error}</p>
-        )}
-        {redirecting && (
-          <p className="text-sm text-muted-foreground">
-            Redirecting…
-            {showFallbackLink && (
-              <span className="block mt-2">
-                If nothing happened,{' '}
-                <Link href={searchParams.get('next') || '/dashboard'} className="text-primary font-medium hover:underline">
-                  open the dashboard
-                </Link>
-                .
-              </span>
-            )}
-          </p>
         )}
         <div className="flex justify-end">
           <Link href="/forgot-password" className="text-xs text-primary hover:underline">

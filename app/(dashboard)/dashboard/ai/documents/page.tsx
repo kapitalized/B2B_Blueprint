@@ -21,9 +21,13 @@ interface ProjectFile {
   uploadedAt?: string | null;
 }
 
-function AIDocumentsContent() {
+export interface AIDocumentsContentProps {
+  initialProjectId?: string;
+}
+
+export function AIDocumentsContent({ initialProjectId }: AIDocumentsContentProps = {}) {
   const searchParams = useSearchParams();
-  const projectIdParam = searchParams.get('projectId');
+  const projectIdParam = initialProjectId ?? searchParams.get('projectId');
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState<string>(projectIdParam ?? '');
   const [files, setFiles] = useState<ProjectFile[]>([]);
@@ -31,6 +35,11 @@ function AIDocumentsContent() {
   const [uploading, setUploading] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  useEffect(() => {
+    if (initialProjectId) setProjectId(initialProjectId);
+  }, [initialProjectId]);
 
   useEffect(() => {
     fetch('/api/projects')
@@ -38,11 +47,12 @@ function AIDocumentsContent() {
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
         setProjects(list);
-        if (!projectId && list.length > 0) setProjectId(list[0].id);
-        if (projectIdParam && list.some((p: Project) => p.id === projectIdParam)) setProjectId(projectIdParam);
+        if (initialProjectId) setProjectId(initialProjectId);
+        else if (!projectId && list.length > 0) setProjectId(list[0].id);
+        else if (projectIdParam && list.some((p: Project) => p.id === projectIdParam)) setProjectId(projectIdParam);
       })
       .catch(() => setProjects([]));
-  }, [projectIdParam]);
+  }, [projectIdParam, initialProjectId]);
 
   const loadFiles = useCallback(() => {
     if (!projectId) return setFiles([]);
@@ -56,9 +66,8 @@ function AIDocumentsContent() {
 
   useEffect(() => { loadFiles(); }, [loadFiles]);
 
-  async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !projectId || uploading) return;
+  async function uploadFile(file: File) {
+    if (!projectId || uploading) return;
     setError(null);
     setUploading(true);
     const form = new FormData();
@@ -75,8 +84,33 @@ function AIDocumentsContent() {
       setError('Upload failed.');
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
+  }
+
+  function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) uploadFile(file);
+    e.target.value = '';
+  }
+
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  }
+
+  function onDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && projectId && !uploading) uploadFile(file);
   }
 
   async function runAnalysis(file: ProjectFile) {
@@ -122,34 +156,41 @@ function AIDocumentsContent() {
         </div>
       )}
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Project</label>
-        <select
-          value={projectId}
-          onChange={(e) => setProjectId(e.target.value)}
-          className="rounded-md border px-3 py-2 text-sm w-full max-w-xs"
-        >
-          <option value="">Select project</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.projectName}</option>
-          ))}
-        </select>
-      </div>
+      {!initialProjectId && (
+        <div>
+          <label className="block text-sm font-medium mb-1">Project</label>
+          <select
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm w-full max-w-xs text-foreground"
+          >
+            <option value="">Select project</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.projectName}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {projectId && (
         <>
           <div
-            className="border-2 border-dashed rounded-xl p-8 text-center bg-muted/10 hover:bg-muted/20 transition-colors"
+            role="button"
+            tabIndex={0}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+            className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${dragOver ? 'bg-blue-500/15 border-blue-500 text-blue-700 dark:bg-blue-500/20 dark:border-blue-400 dark:text-blue-300' : 'bg-muted/10 hover:bg-muted/20 border-muted-foreground/25'}`}
           >
             <label className="cursor-pointer block">
-              <span className="text-muted-foreground font-medium">
-                {uploading ? 'Uploading…' : 'Drop files or click to upload'}
+              <span className={`font-medium ${dragOver ? 'text-blue-700 dark:text-blue-300' : 'text-muted-foreground'}`}>
+                {uploading ? 'Uploading…' : dragOver ? 'Drop to upload' : 'Drop files here or click to select'}
               </span>
               <input
                 type="file"
                 className="hidden"
                 disabled={uploading}
-                onChange={onUpload}
+                onChange={onInputChange}
                 accept=".pdf,.png,.jpg,.jpeg,.webp"
               />
             </label>

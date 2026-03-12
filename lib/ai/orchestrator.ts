@@ -3,12 +3,14 @@
  * Blueprint @04_ai_module_blueprint, @05_ai_integration_guide.
  */
 
-import { getModelForStep } from './model-selector';
+import { getAIModelConfig } from './model-config';
+import { getSystemPrompt } from './base-prompts';
 import { callOpenRouter, isOpenRouterConfigured } from './openrouter';
 import { runCitationAudit, type AuditItem, type Benchmark } from './citation-audit';
 import { createAuditEntry, appendAuditEntry } from './audit-trail';
 import { getPromptOverrides } from './templates';
 import { callPythonEngine } from '@/lib/python-client';
+import { isPrivateBlobUrl, privateBlobToDataUrl } from '@/lib/blob';
 import type { SourceSpan } from './types';
 
 export const TASK_STATUSES = [
@@ -59,6 +61,17 @@ export interface SynthesisResult {
   criticalWarnings: Array<{ itemId: string; label: string; deviation: number; message: string }>;
 }
 
+/** Token usage per step and totals (from OpenRouter). */
+export interface PipelineTokenUsage {
+  extraction?: { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost?: number };
+  analysis?: { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost?: number };
+  synthesis?: { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost?: number };
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_tokens: number;
+  total_cost?: number;
+}
+
 export interface PipelineResult {
   status: TaskStatus;
   taskId: string;
@@ -66,6 +79,7 @@ export interface PipelineResult {
   raw_extraction: ExtractionResult;
   final_analysis: AnalysisResult & { synthesis?: SynthesisResult };
   is_verified: false;
+  tokenUsage?: PipelineTokenUsage;
 }
 
 function stubExtraction(): ExtractionResult {
@@ -96,25 +110,47 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
   const runId = params.runId ?? `run_${taskId}`;
   const hasKey = isOpenRouterConfigured();
   const overrides = templateId ? getPromptOverrides(templateId) : {};
+  const models = await getAIModelConfig();
 
   // Step 1: Vision or text extraction
   const extractionBase = overrides?.extraction ?? 'Extract from the following source as structured JSON. For each item include: id, label, confidence_score (0-1), and coordinate_polygons if spatial. If the source is an image (floorplan/drawing), also estimate area_m2 when possible.';
   const sourceText = sourceContent ?? (params.fileUrl ? 'See attached image.' : '[No content: add fileUrl or sourceContent]');
   const extractionPrompt = `${extractionBase} Source: ${sourceText}`;
   let raw_extraction: ExtractionResult;
-  const extractionModel = getModelForStep('EXTRACTION');
+  const extractionModel = models.extraction;
+  const usageByStep: PipelineResult['tokenUsage'] = {
+    total_prompt_tokens: 0,
+    total_completion_tokens: 0,
+    total_tokens: 0,
+    total_cost: undefined,
+  };
 
   if (hasKey) {
     try {
-      const messages = params.fileUrl
-        ? [{ role: 'user' as const, content: [{ type: 'text' as const, text: extractionPrompt }, { type: 'image_url' as const, image_url: { url: params.fileUrl } }] }]
-        : [{ role: 'user' as const, content: extractionPrompt }];
-      const content = await callOpenRouter({
+      let imageUrlForVision = params.fileUrl;
+      if (params.fileUrl && isPrivateBlobUrl(params.fileUrl)) {
+        imageUrlForVision = await privateBlobToDataUrl(params.fileUrl);
+      }
+      const extractionSystem = getSystemPrompt('EXTRACTION');
+      const userContent = imageUrlForVision
+        ? [{ type: 'text' as const, text: extractionPrompt }, { type: 'image_url' as const, image_url: { url: imageUrlForVision } }]
+        : extractionPrompt;
+      const messages = imageUrlForVision
+        ? [{ role: 'system' as const, content: extractionSystem }, { role: 'user' as const, content: userContent }]
+        : [{ role: 'system' as const, content: extractionSystem }, { role: 'user' as const, content: extractionPrompt }];
+      const { content, usage: extUsage } = await callOpenRouter({
         model: extractionModel,
         messages,
         max_tokens: 2048,
       });
       raw_extraction = parseExtraction(content);
+      if (extUsage) {
+        usageByStep.extraction = extUsage;
+        usageByStep.total_prompt_tokens += extUsage.prompt_tokens;
+        usageByStep.total_completion_tokens += extUsage.completion_tokens;
+        usageByStep.total_tokens += extUsage.total_tokens;
+        if (extUsage.cost != null) usageByStep.total_cost = (usageByStep.total_cost ?? 0) + extUsage.cost;
+      }
       appendAuditEntry(createAuditEntry({ runId, taskId, model: extractionModel, step: 'EXTRACTION', orgId: params.orgId, documentId }));
     } catch {
       raw_extraction = stubExtraction();
@@ -156,15 +192,23 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
   } else {
     const analysisBase = overrides?.analysis ?? 'Given extraction: apply constants. Output a JSON array of items with: id, label, value (number), unit, citation_id.';
     const analysisPrompt = `${analysisBase} Extraction: ${JSON.stringify(raw_extraction)}. Constants: ${libraryStr || 'none'}.`;
-    const analysisModel = getModelForStep('ANALYSIS');
+    const analysisModel = models.analysis;
     if (hasKey) {
       try {
-        const content = await callOpenRouter({
+        const analysisSystem = getSystemPrompt('ANALYSIS');
+        const { content, usage: analysisUsage } = await callOpenRouter({
           model: analysisModel,
-          messages: [{ role: 'user', content: analysisPrompt }],
+          messages: [{ role: 'system', content: analysisSystem }, { role: 'user', content: analysisPrompt }],
           max_tokens: 2048,
         });
         analysisItems = parseAnalysisItems(content);
+        if (analysisUsage) {
+          usageByStep.analysis = analysisUsage;
+          usageByStep.total_prompt_tokens += analysisUsage.prompt_tokens;
+          usageByStep.total_completion_tokens += analysisUsage.completion_tokens;
+          usageByStep.total_tokens += analysisUsage.total_tokens;
+          if (analysisUsage.cost != null) usageByStep.total_cost = (usageByStep.total_cost ?? 0) + analysisUsage.cost;
+        }
         appendAuditEntry(createAuditEntry({ runId, taskId, model: analysisModel, step: 'ANALYSIS', orgId: params.orgId, documentId }));
       } catch {
         analysisItems = stubAnalysis(raw_extraction).items;
@@ -179,15 +223,24 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
   const synthesisBase = overrides?.synthesis ?? 'Format these analysis results as a short Markdown report.';
   const synthesisPrompt = `${synthesisBase} Items: ${JSON.stringify(analysisItems)}. ${audit.criticalWarnings.length > 0 ? `Add a CRITICAL WARNING section for: ${audit.criticalWarnings.map((w) => w.message).join('; ')}` : ''}`;
   let content_md: string;
-  const synthesisModel = getModelForStep('SYNTHESIS');
+  const synthesisModel = models.synthesis;
 
   if (hasKey) {
     try {
-      content_md = await callOpenRouter({
+      const synthesisSystem = getSystemPrompt('SYNTHESIS');
+      const { content: synContent, usage: synUsage } = await callOpenRouter({
         model: synthesisModel,
-        messages: [{ role: 'user', content: synthesisPrompt }],
+        messages: [{ role: 'system', content: synthesisSystem }, { role: 'user', content: synthesisPrompt }],
         max_tokens: 2048,
       });
+      content_md = synContent;
+      if (synUsage) {
+        usageByStep.synthesis = synUsage;
+        usageByStep.total_prompt_tokens += synUsage.prompt_tokens;
+        usageByStep.total_completion_tokens += synUsage.completion_tokens;
+        usageByStep.total_tokens += synUsage.total_tokens;
+        if (synUsage.cost != null) usageByStep.total_cost = (usageByStep.total_cost ?? 0) + synUsage.cost;
+      }
       appendAuditEntry(createAuditEntry({ runId, taskId, model: synthesisModel, step: 'SYNTHESIS', orgId: params.orgId, documentId }));
     } catch {
       content_md = formatStubReport(analysisItems, audit);
@@ -209,6 +262,7 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
     raw_extraction,
     final_analysis: { items: analysisItems, synthesis },
     is_verified: false,
+    tokenUsage: usageByStep.total_tokens > 0 ? usageByStep : undefined,
   };
 }
 

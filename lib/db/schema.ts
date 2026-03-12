@@ -46,6 +46,10 @@ export const project_main = pgTable('project_main', {
   userId: uuid('user_id').references(() => user_profiles.id),
   projectName: text('project_name').notNull(),
   projectAddress: text('project_address'),
+  projectDescription: text('project_description'), // short description
+  projectObjectives: text('project_objectives'), // what the user wants to achieve (e.g. cost estimates from drawings)
+  shortId: text('short_id'), // unique 6-char for URLs e.g. /project/abc123/my-building
+  slug: text('slug'), // URL slug from name e.g. my-building
   status: text('status').default('active'), // 'active', 'archived', 'completed'
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -79,6 +83,15 @@ export const ai_analyses = pgTable('ai_analyses', {
   analysisResult: jsonb('analysis_result').notNull(),
   inputSourceIds: jsonb('input_source_ids').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
+  // Run metadata (when from pipeline)
+  runStartedAt: timestamp('run_started_at'),
+  runDurationMs: integer('run_duration_ms'),
+  inputSizeBytes: integer('input_size_bytes'),
+  inputPageCount: integer('input_page_count'),
+  /** OpenRouter token usage and cost (prompt_tokens, completion_tokens, total_tokens, cost per step). */
+  tokenUsage: jsonb('token_usage'),
+  /** Model ids used for this run: { extraction, analysis, synthesis }. */
+  modelsUsed: jsonb('models_used'),
 });
 
 export const ai_knowledge_nodes = pgTable('ai_knowledge_nodes', {
@@ -318,4 +331,15 @@ export const ref_knowledge_nodes = pgTable('ref_knowledge_nodes', {
   source_standard_id: uuid('source_standard_id').references(() => ref_standards.id),
   metadata: jsonb('metadata'),
   created_at: timestamp('created_at').defaultNow(),
+});
+
+// ---- APP SETTINGS (admin-configurable, single row) ----
+/** OpenRouter model ids per AI step. Single row (id=1). */
+export const ai_model_config = pgTable('ai_model_config', {
+  id: integer('id').primaryKey().default(1),
+  extraction_model: text('extraction_model').notNull(),
+  analysis_model: text('analysis_model').notNull(),
+  synthesis_model: text('synthesis_model').notNull(),
+  chat_model: text('chat_model').notNull(),
+  updated_at: timestamp('updated_at').defaultNow(),
 });

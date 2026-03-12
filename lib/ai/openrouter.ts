@@ -1,6 +1,7 @@
 /**
  * OpenRouter API client for the AI pipeline.
  * When OPENROUTER_API_KEY is not set, calls are no-ops and return stub data so the app runs without manual setup.
+ * Captures token usage and cost from the response for logging and billing visibility.
  */
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -17,16 +18,30 @@ export interface OpenRouterOptions {
   max_tokens?: number;
 }
 
+/** Token usage and cost returned by OpenRouter (see https://openrouter.ai/docs/guides/administration/usage-accounting). */
+export interface OpenRouterUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  /** Total cost in USD when present. */
+  cost?: number;
+}
+
+export interface OpenRouterResult {
+  content: string;
+  usage?: OpenRouterUsage;
+}
+
 export function isOpenRouterConfigured(): boolean {
   return Boolean(API_KEY && API_KEY.length > 0);
 }
 
 /**
- * Call OpenRouter chat completions. Returns stub content when API key is missing.
+ * Call OpenRouter chat completions. Returns content and usage (tokens, cost) when API key is set.
  */
-export async function callOpenRouter(options: OpenRouterOptions): Promise<string> {
+export async function callOpenRouter(options: OpenRouterOptions): Promise<OpenRouterResult> {
   if (!isOpenRouterConfigured()) {
-    return '[OpenRouter not configured: set OPENROUTER_API_KEY in .env.local]';
+    return { content: '[OpenRouter not configured: set OPENROUTER_API_KEY in .env.local]' };
   }
 
   const response = await fetch(OPENROUTER_URL, {
@@ -48,7 +63,21 @@ export async function callOpenRouter(options: OpenRouterOptions): Promise<string
     throw new Error(`OpenRouter ${response.status}: ${err}`);
   }
 
-  const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const data = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    cost?: number;
+  };
   const content = data.choices?.[0]?.message?.content ?? '';
-  return content;
+  const usageRaw = data.usage;
+  const usage: OpenRouterUsage | undefined =
+    usageRaw && typeof usageRaw.prompt_tokens === 'number' && typeof usageRaw.completion_tokens === 'number'
+      ? {
+          prompt_tokens: usageRaw.prompt_tokens,
+          completion_tokens: usageRaw.completion_tokens,
+          total_tokens: usageRaw.total_tokens ?? usageRaw.prompt_tokens + usageRaw.completion_tokens,
+          cost: typeof data.cost === 'number' ? data.cost : undefined,
+        }
+      : undefined;
+  return { content, usage };
 }

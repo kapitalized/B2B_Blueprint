@@ -1,6 +1,6 @@
 /**
  * Protects /dashboard: uses Neon Auth (base) when configured, else Supabase.
- * Redirects to /login when unauthenticated.
+ * Neon path: optimistic cookie check only (no DB call in Edge) to avoid Edge/Node sync issues.
  */
 
 import { type NextRequest, NextResponse } from 'next/server';
@@ -30,12 +30,24 @@ export async function middleware(request: NextRequest) {
 
     if (neonConfigured) {
       const { getSessionCookie } = await import('better-auth/cookies');
-      // Neon Auth uses cookie prefix "neon-auth" (cookie: __Secure-neon-auth.session_token in prod)
+      // Lightweight check: presence of session cookie only (no DB). Dashboard/API do full validation.
       const sessionCookie = getSessionCookie(request, { cookiePrefix: 'neon-auth' });
       if (isDashboard(pathname) && !sessionCookie) {
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('next', pathname);
         return NextResponse.redirect(loginUrl);
+      }
+      // Neon SDK only reads cookies starting with __Secure-neon-auth. On http we set neon-auth.* (no Secure).
+      // Duplicate neon-auth.* as __Secure-neon-auth.* in the request so the SDK sees them.
+      const cookieHeader = request.headers.get('cookie');
+      if (cookieHeader) {
+        const pairs: string[] = [];
+        for (const name of ['neon-auth.session_token', 'neon-auth.local.session_data']) {
+          const secureName = `__Secure-${name}`;
+          const match = cookieHeader.match(new RegExp(`(?:^|;)\\s*${name.replace(/\./g, '\\.')}=([^;]*)`));
+          if (match) pairs.push(`${secureName}=${match[1].trim()}`);
+        }
+        if (pairs.length) requestHeaders.set('cookie', pairs.join('; ') + '; ' + cookieHeader);
       }
       return NextResponse.next({ request: { headers: requestHeaders } });
     }
@@ -57,7 +69,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  // Run for dashboard, login, and API routes so cookie duplication (neon-auth → __Secure-neon-auth) applies to /api/projects too
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };

@@ -1,4 +1,5 @@
 export { AI_STEPS, getModelForStep, type AIStepKey } from './model-selector';
+export { getAIModelConfig, setAIModelConfig, type AIModelConfig } from './model-config';
 export { callOpenRouter, isOpenRouterConfigured } from './openrouter';
 export { runCitationAudit, type AuditItem, type Benchmark, type CitationAuditResult } from './citation-audit';
 export {
@@ -7,10 +8,12 @@ export {
   type TaskStatus,
   type OrchestratorParams,
   type PipelineResult,
+  type PipelineTokenUsage,
   type ExtractionResult,
   type AnalysisResult,
   type SynthesisResult,
 } from './orchestrator';
+export type { OpenRouterUsage, OpenRouterResult } from './openrouter';
 export type {
   AuditTrailEntry,
   SourceSpan,

@@ -27,14 +27,24 @@ function parseCookieValue(cookieHeader: string | null, name: string): string | n
   return null;
 }
 
+/** Decode once so double-encoded cookie values from browser work with session validation. */
+function decodeCookieValue(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 /** Build Cookie header with neon-auth session token also set as better-auth token so getSession finds it. */
 function buildCookieHeaderWithMappedSession(cookieHeader: string | null): string {
   if (!cookieHeader) return '';
   const secure = getSecurePrefix();
   const neonNameSecure = `${secure}${NEON_PREFIX}.${SESSION_TOKEN_NAME}`;
   const neonNamePlain = `${NEON_PREFIX}.${SESSION_TOKEN_NAME}`;
-  const neonValue = parseCookieValue(cookieHeader, neonNameSecure) ?? parseCookieValue(cookieHeader, neonNamePlain);
+  let neonValue = parseCookieValue(cookieHeader, neonNameSecure) ?? parseCookieValue(cookieHeader, neonNamePlain);
   if (!neonValue) return cookieHeader;
+  neonValue = decodeCookieValue(neonValue);
   const defaultName = `${secure}${DEFAULT_PREFIX}.${SESSION_TOKEN_NAME}`;
   // Put the cookie auth library expects first so it is found
   return `${defaultName}=${neonValue}; ${cookieHeader}`;
@@ -42,19 +52,21 @@ function buildCookieHeaderWithMappedSession(cookieHeader: string | null): string
 
 /**
  * Get session for layout when Neon Auth is configured.
- * Tries getSession first; if null, re-tries with headers that map neon-auth cookie to better-auth name.
+ * Prefer auth.getSession() (uses next/headers; middleware injects __Secure- cookies on http).
+ * Fallback: map neon-auth cookie to better-auth name and call api.getSession({ headers }).
  */
 export async function getSessionForLayout(headers: Headers): Promise<{ user?: { id?: string; email?: string } } | null> {
   if (!isNeonAuthConfigured() || !auth) return null;
   try {
-    let session = await (auth as { api?: { getSession: (opts: { headers: Headers }) => Promise<{ user?: { id?: string; email?: string } }> } }).api?.getSession?.({ headers });
-    if (session?.user) return session;
+    const neonAuth = auth as { getSession?: () => Promise<{ data?: { user?: { id?: string; email?: string } } }>; api?: { getSession: (opts: { headers: Headers }) => Promise<{ user?: { id?: string; email?: string } }> } };
+    const { data } = (await neonAuth.getSession?.()) ?? {};
+    if (data?.user) return data as { user?: { id?: string; email?: string } };
     const cookieHeader = headers.get('cookie');
     const mappedCookie = buildCookieHeaderWithMappedSession(cookieHeader);
     if (!mappedCookie || mappedCookie === cookieHeader) return null;
     const newHeaders = new Headers(headers);
     newHeaders.set('cookie', mappedCookie);
-    session = await (auth as { api?: { getSession: (opts: { headers: Headers }) => Promise<{ user?: { id?: string; email?: string } }> } }).api?.getSession?.({ headers: newHeaders });
+    const session = await neonAuth.api?.getSession?.({ headers: newHeaders });
     return session ?? null;
   } catch {
     return null;

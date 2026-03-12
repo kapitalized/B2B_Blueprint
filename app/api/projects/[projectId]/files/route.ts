@@ -2,12 +2,13 @@
  * Project files: list (GET) and upload (POST). User must own the project.
  */
 
+import { put } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 import { getSessionForApi } from '@/lib/auth/session';
 import { db } from '@/lib/db';
 import { project_main, project_files } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { uploadBlob, isBlobConfigured } from '@/lib/blob';
+import { isBlobConfigured } from '@/lib/blob';
 
 async function ensureProjectOwnership(projectId: string, userId: string): Promise<boolean> {
   const [row] = await db
@@ -61,10 +62,13 @@ export async function POST(
   const safeType = ['plan', 'defect_report', 'contract'].includes(fileType) ? fileType : 'plan';
   try {
     const pathname = `projects/${projectId}/${Date.now()}-${file.name}`;
-    const { url, pathname: blobPath } = await uploadBlob(pathname, file, {
+    const blob = await put(pathname, file, {
+      access: 'private',
       contentType: file.type || undefined,
       addRandomSuffix: true,
     });
+    const url = blob.url;
+    const blobPath = blob.pathname;
     const [row] = await db
       .insert(project_files)
       .values({
@@ -78,7 +82,8 @@ export async function POST(
       .returning();
     return NextResponse.json(row);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Upload failed';
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[project files upload]', message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

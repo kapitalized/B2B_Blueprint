@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionForApi } from '@/lib/auth/session';
 import { db } from '@/lib/db';
-import { project_main, report_generated } from '@/lib/db/schema';
+import { project_main, report_generated, ai_analyses } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
 async function ensureProjectOwnership(projectId: string, userId: string): Promise<boolean> {
@@ -33,11 +33,21 @@ export async function GET(
         reportTitle: report_generated.reportTitle,
         reportType: report_generated.reportType,
         createdAt: report_generated.createdAt,
+        runStartedAt: ai_analyses.runStartedAt,
+        runDurationMs: ai_analyses.runDurationMs,
       })
       .from(report_generated)
+      .leftJoin(ai_analyses, eq(report_generated.analysisSourceId, ai_analyses.id))
       .where(eq(report_generated.projectId, projectId))
       .orderBy(desc(report_generated.createdAt));
-    return NextResponse.json(reports);
+    return NextResponse.json(reports.map((r) => ({
+      id: r.id,
+      reportTitle: r.reportTitle,
+      reportType: r.reportType,
+      createdAt: r.createdAt,
+      runStartedAt: r.runStartedAt?.toISOString() ?? null,
+      runDurationMs: r.runDurationMs ?? null,
+    })));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to list reports';
     return NextResponse.json({ error: message }, { status: 500 });

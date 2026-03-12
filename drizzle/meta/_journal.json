@@ -15,6 +15,48 @@
       "when": 1773273028319,
       "tag": "0001_ref_library",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773282550416,
+      "tag": "0002_cold_anita_blake",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1773300000000,
+      "tag": "0003_ai_model_config",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1773350000000,
+      "tag": "0004_analysis_run_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1773360000000,
+      "tag": "0005_analysis_token_usage",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1773370000000,
+      "tag": "0006_analysis_models_used",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1773380000000,
+      "tag": "0007_project_objectives",
+      "breakpoints": true
     }
   ]
 }

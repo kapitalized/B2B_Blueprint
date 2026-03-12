@@ -21,7 +21,7 @@ Use the same Neon project for production (Vercel) and development (localhost). T
 3. Copy the **Auth URL** → this is `NEON_AUTH_BASE_URL`.
 4. Generate a **cookie secret** (min 32 characters), e.g.:
    - `openssl rand -base64 32` (terminal), or use a password generator.
-   - Save it securely; this is `NEON_AUTH_COOKIE_SECRET`.
+   - Save it in your app as `NEON_AUTH_COOKIE_SECRET`. You do **not** set this in the Neon Console—it stays only in your app (`.env.local` / Vercel env).
 
 ---
 
@@ -73,7 +73,7 @@ See `docs/SCHEMA_SETUP.md` for details.
 
 ## 6. Session cookies and different URLs
 
-The app sets the session cookie for your host so login works. In development we use `domain: 'localhost'` so the same cookie works for `localhost:3000`, `localhost:3001`, etc. In production, set `COOKIE_DOMAIN` (e.g. `.your-app.com`) only if you need cross-subdomain sessions; otherwise leave it unset.
+The app sets the session cookie for your host so login works. In development we use `domain: 'localhost'` so the same cookie works for `localhost:3000`, `localhost:3001`, etc. On **http://localhost** the auth route rewrites cookies (removes `Secure` and `__Secure-` prefix) so the browser will store and send them; otherwise you’d get a redirect loop (login → dashboard → logged out → login). In production (HTTPS), leave cookies as-is. Set `COOKIE_DOMAIN` (e.g. `.your-app.com`) only if you need cross-subdomain sessions; otherwise leave it unset.
 
 **Sessions are tied to the exact origin** (protocol + host + port). These are all different origins, so each has its own session cookie:
 
