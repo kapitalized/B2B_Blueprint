@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
 import { BRAND } from '@/lib/brand';
-import { auth, isNeonAuthConfigured } from '@/lib/auth/server';
+import { isNeonAuthConfigured } from '@/lib/auth/server';
+import { getSessionForLayout } from '@/lib/auth/get-session-for-layout';
 import { createClient } from '@/lib/supabase/server';
 import { signOut } from '@/lib/supabase/actions';
 import { UserMenu } from '@/components/dashboard/UserMenu';
@@ -13,9 +14,9 @@ export default async function DashboardLayout({
 }) {
   let user: { email?: string | null } | null = null;
 
-  if (isNeonAuthConfigured() && auth) {
+  if (isNeonAuthConfigured()) {
     try {
-      const session = await (auth as { api?: { getSession: (opts: { headers: Headers }) => Promise<{ user?: { email?: string } }> } }).api?.getSession?.({ headers: await headers() });
+      const session = await getSessionForLayout(await headers());
       user = session?.user ? { email: session.user.email } : null;
     } catch {
       user = null;

@@ -4,7 +4,8 @@
  */
 
 import { headers } from 'next/headers';
-import { auth, isNeonAuthConfigured } from '@/lib/auth/server';
+import { isNeonAuthConfigured } from '@/lib/auth/server';
+import { getSessionForLayout } from '@/lib/auth/get-session-for-layout';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
 import { user_profiles } from '@/lib/db/schema';
@@ -21,11 +22,9 @@ export interface ApiSession {
 
 /** Get session in API routes. Returns null if unauthenticated. */
 export async function getSessionForApi(): Promise<ApiSession | null> {
-  if (isNeonAuthConfigured() && auth) {
+  if (isNeonAuthConfigured()) {
     try {
-      const session = await (auth as { api?: { getSession: (opts: { headers: Headers }) => Promise<{ user?: { id?: string; email?: string } }> } }).api?.getSession?.({
-        headers: await headers(),
-      });
+      const session = await getSessionForLayout(await headers());
       const user = session?.user;
       if (user?.id) {
         return { user: { id: user.id, email: user.email }, userId: user.id };

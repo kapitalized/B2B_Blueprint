@@ -62,14 +62,14 @@ export function UserMenu({ userEmail, useNeonAuth, signOutAction }: UserMenuProp
           </Link>
           <div className="border-t pt-1">
             {useNeonAuth ? (
-              <a
+              <Link
                 href="/api/auth/sign-out"
                 className="block px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                 role="menuitem"
                 onClick={() => setOpen(false)}
               >
                 Log out
-              </a>
+              </Link>
             ) : signOutAction ? (
               <form action={signOutAction} className="block">
                 <button
@@ -82,13 +82,13 @@ export function UserMenu({ userEmail, useNeonAuth, signOutAction }: UserMenuProp
                 </button>
               </form>
             ) : (
-              <a
+              <Link
                 href="/api/auth/sign-out"
                 className="block px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                 role="menuitem"
               >
                 Log out
-              </a>
+              </Link>
             )}
           </div>
         </div>

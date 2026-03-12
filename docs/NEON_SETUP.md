@@ -73,6 +73,8 @@ See `docs/SCHEMA_SETUP.md` for details.
 
 ## 6. Session cookies and different URLs
 
+The app sets the session cookie for your host so login works. In development we use `domain: 'localhost'` so the same cookie works for `localhost:3000`, `localhost:3001`, etc. In production, set `COOKIE_DOMAIN` (e.g. `.your-app.com`) only if you need cross-subdomain sessions; otherwise leave it unset.
+
 **Sessions are tied to the exact origin** (protocol + host + port). These are all different origins, so each has its own session cookie:
 
 - `http://localhost:3000`

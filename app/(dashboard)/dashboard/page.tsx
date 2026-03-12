@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface Project {
   id: string;
@@ -15,6 +16,7 @@ interface Project {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,10 +28,13 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/projects');
+      const res = await fetch('/api/projects', { credentials: 'include' });
       if (!res.ok) {
-        if (res.status === 401) setError('Please sign in.');
-        else setError('Failed to load projects.');
+        if (res.status === 401) {
+          router.replace('/login?next=/dashboard&reason=session');
+          return;
+        }
+        setError('Failed to load projects.');
         return;
       }
       const data = await res.json();
@@ -51,6 +56,7 @@ export default function DashboardPage() {
     try {
       const res = await fetch('/api/projects', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectName: newName.trim(), projectAddress: newAddress.trim() || undefined }),
       });

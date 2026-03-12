@@ -15,6 +15,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get('next') || '/dashboard';
+  const reason = searchParams.get('reason');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -23,6 +24,9 @@ function LoginForm() {
   const [showFallbackLink, setShowFallbackLink] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    if (reason === 'session') setError('Your session expired or you need to sign in.');
+  }, [reason]);
 
   useEffect(() => {
     if (!redirecting) return;
@@ -118,6 +122,11 @@ function LoginForm() {
       <p className="mt-1 text-sm text-muted-foreground">
         Log in to your account.
       </p>
+      {mounted && typeof window !== 'undefined' && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Use the same browser URL for the whole session (e.g. {window.location.origin}).
+        </p>
+      )}
       <form onSubmit={handleSubmit} className="mt-4 space-y-3">
         <div>
           <label htmlFor="email" className="mb-1 block text-sm font-medium">

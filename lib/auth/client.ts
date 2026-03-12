@@ -10,6 +10,7 @@ const baseUrl = typeof window !== 'undefined' ? window.location.origin + '/api/a
 
 export const authClient = createAuthClient({
   baseURL: baseUrl || undefined,
+  fetchOptions: { credentials: 'include' as RequestCredentials },
 });
 
 export function isNeonAuthClientConfigured(): boolean {
