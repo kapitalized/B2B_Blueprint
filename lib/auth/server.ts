@@ -16,6 +16,8 @@ export const auth = baseUrl && cookieSecret
   ? createNeonAuth({
       baseUrl,
       cookies: { secret: cookieSecret },
+      // Match cookie prefix used by Neon Auth so getSession() finds the session
+      advanced: { cookiePrefix: 'neon-auth' } as Record<string, unknown>,
     })
   : null;
 

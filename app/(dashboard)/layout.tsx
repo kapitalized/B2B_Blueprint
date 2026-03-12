@@ -4,6 +4,7 @@ import { BRAND } from '@/lib/brand';
 import { auth, isNeonAuthConfigured } from '@/lib/auth/server';
 import { createClient } from '@/lib/supabase/server';
 import { signOut } from '@/lib/supabase/actions';
+import { UserMenu } from '@/components/dashboard/UserMenu';
 
 export default async function DashboardLayout({
   children,
@@ -52,20 +53,11 @@ export default async function DashboardLayout({
             Billing
           </Link>
           {user ? (
-            <span className="text-sm text-muted-foreground">
-              {user.email}
-              {isNeonAuthConfigured() ? (
-                <Link href="/api/auth/sign-out" className="ml-2 text-sm text-muted-foreground hover:text-foreground underline">
-                  Sign out
-                </Link>
-              ) : (
-                <form action={signOut} className="inline ml-2">
-                  <button type="submit" className="text-sm text-muted-foreground hover:text-foreground underline">
-                    Sign out
-                  </button>
-                </form>
-              )}
-            </span>
+            <UserMenu
+              userEmail={user.email}
+              useNeonAuth={isNeonAuthConfigured()}
+              signOutAction={isNeonAuthConfigured() ? undefined : signOut}
+            />
           ) : (
             <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground">
               Log in

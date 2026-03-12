@@ -30,7 +30,8 @@ export async function middleware(request: NextRequest) {
 
     if (neonConfigured) {
       const { getSessionCookie } = await import('better-auth/cookies');
-      const sessionCookie = getSessionCookie(request);
+      // Neon Auth uses cookie prefix "neon-auth" (cookie: __Secure-neon-auth.session_token in prod)
+      const sessionCookie = getSessionCookie(request, { cookiePrefix: 'neon-auth' });
       if (isDashboard(pathname) && !sessionCookie) {
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('next', pathname);
