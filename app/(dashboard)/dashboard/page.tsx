@@ -7,12 +7,16 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { projectPath, projectSubPath } from '@/lib/project-url';
-import { COUNTRY_OPTIONS, PROJECT_STATUS_OPTIONS } from '@/lib/project-form-options';
+import { PROJECT_STATUS_OPTIONS } from '@/lib/project-form-options';
+import type { Address } from '@/lib/address';
+import { EMPTY_ADDRESS, parseAddress } from '@/lib/address';
+import { AddressForm } from '@/components/AddressForm';
 
 interface Project {
   id: string;
   projectName: string;
   projectAddress?: string | null;
+  address?: Address;
   projectDescription?: string | null;
   projectObjectives?: string | null;
   country?: string | null;
@@ -21,6 +25,7 @@ interface Project {
   createdAt?: string | null;
   shortId?: string | null;
   slug?: string | null;
+  numberOfLevels?: number | null;
 }
 
 export default function DashboardPage() {
@@ -29,17 +34,17 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
-  const [newAddress, setNewAddress] = useState('');
+  const [newAddress, setNewAddress] = useState<Address>({ ...EMPTY_ADDRESS });
   const [newDescription, setNewDescription] = useState('');
-  const [newCountry, setNewCountry] = useState('');
   const [newProjectStatus, setNewProjectStatus] = useState('');
+  const [newNumberOfLevels, setNewNumberOfLevels] = useState(1);
   const [creating, setCreating] = useState(false);
   const [editProjectId, setEditProjectId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [editAddress, setEditAddress] = useState('');
+  const [editAddress, setEditAddress] = useState<Address>({ ...EMPTY_ADDRESS });
   const [editDescription, setEditDescription] = useState('');
-  const [editCountry, setEditCountry] = useState('');
   const [editProjectStatus, setEditProjectStatus] = useState('');
+  const [editNumberOfLevels, setEditNumberOfLevels] = useState(1);
   const [savingEdit, setSavingEdit] = useState(false);
 
   async function load() {
@@ -77,10 +82,10 @@ export default function DashboardPage() {
         if (!cancelled && res.ok) {
           const p = await res.json();
           setEditName(p.projectName ?? '');
-          setEditAddress(p.projectAddress ?? '');
+          setEditAddress(p.address ? { ...p.address } : parseAddress(p.projectAddress ?? ''));
           setEditDescription(p.projectDescription ?? '');
-          setEditCountry(p.country ?? '');
           setEditProjectStatus(p.projectStatus ?? '');
+          setEditNumberOfLevels(p.numberOfLevels ?? 1);
         }
       } catch {
         if (!cancelled) setEditProjectId(null);
@@ -91,10 +96,10 @@ export default function DashboardPage() {
   async function loadEditForm(project: Project) {
     setEditProjectId(project.id);
     setEditName(project.projectName ?? '');
-    setEditAddress(project.projectAddress ?? '');
+    setEditAddress(project.address ? { ...project.address } : parseAddress(project.projectAddress ?? ''));
     setEditDescription(project.projectDescription ?? '');
-    setEditCountry(project.country ?? '');
     setEditProjectStatus(project.projectStatus ?? '');
+    setEditNumberOfLevels(project.numberOfLevels ?? 1);
   }
   async function saveEdit() {
     if (!editProjectId || savingEdit) return;
@@ -107,10 +112,10 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectName: editName.trim() || undefined,
-          projectAddress: editAddress.trim() || undefined,
+          address: editAddress,
           projectDescription: editDescription.trim().slice(0, 500) || undefined,
-          country: editCountry.trim() || undefined,
           projectStatus: editProjectStatus.trim() || undefined,
+          numberOfLevels: editNumberOfLevels,
         }),
       });
       if (!res.ok) {
@@ -139,10 +144,10 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectName: newName.trim(),
-          projectAddress: newAddress.trim() || undefined,
+          address: newAddress,
           projectDescription: newDescription.trim().slice(0, 500) || undefined,
-          country: newCountry.trim() || undefined,
           projectStatus: newProjectStatus.trim() || undefined,
+          numberOfLevels: newNumberOfLevels,
         }),
       });
       if (!res.ok) {
@@ -151,10 +156,11 @@ export default function DashboardPage() {
         return;
       }
       setNewName('');
-      setNewAddress('');
+      setNewAddress({ ...EMPTY_ADDRESS });
       setNewDescription('');
       setNewCountry('');
       setNewProjectStatus('');
+      setNewNumberOfLevels(1);
       await load();
     } catch {
       setError('Failed to create project.');
@@ -197,7 +203,11 @@ export default function DashboardPage() {
                         </Link>
                       </p>
                       {p.projectAddress && <p className="text-xs text-muted-foreground truncate">{p.projectAddress}</p>}
-                      {(p.country || p.projectStatus) && <p className="text-xs text-muted-foreground truncate mt-0.5">{[p.country, p.projectStatus].filter(Boolean).join(' · ')}</p>}
+                      {([p.country, p.projectStatus, (p.numberOfLevels != null && p.numberOfLevels >= 1) ? `${p.numberOfLevels} level${p.numberOfLevels !== 1 ? 's' : ''}` : null].filter(Boolean).length > 0) && (
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                          {[p.country, p.projectStatus, (p.numberOfLevels != null && p.numberOfLevels >= 1) ? `${p.numberOfLevels} level${p.numberOfLevels !== 1 ? 's' : ''}` : null].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
                       {p.projectDescription && <p className="text-xs text-muted-foreground truncate mt-0.5">{p.projectDescription}</p>}
                       {projectUrl && (
                         <p className="mt-1.5 text-xs text-muted-foreground font-mono truncate" title={projectUrl}>
@@ -246,28 +256,10 @@ export default function DashboardPage() {
                 className="rounded-md border border-input bg-background px-3 py-2 w-full text-foreground placeholder:text-muted-foreground"
               />
             </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-muted-foreground">Location (optional)</span>
-              <input
-                type="text"
-                value={newAddress}
-                onChange={(e) => setNewAddress(e.target.value)}
-                placeholder="Location"
-                className="rounded-md border border-input bg-background px-3 py-2 w-full text-foreground placeholder:text-muted-foreground"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-muted-foreground">Country</span>
-              <select
-                value={newCountry}
-                onChange={(e) => setNewCountry(e.target.value)}
-                className="rounded-md border border-input bg-background px-3 py-2 w-full text-foreground"
-              >
-                {COUNTRY_OPTIONS.map((c) => (
-                  <option key={c || 'blank'} value={c}>{c || 'Select country'}</option>
-                ))}
-              </select>
-            </label>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Address (optional)</span>
+              <AddressForm value={newAddress} onChange={setNewAddress} labelPrefix="Project" compact />
+            </div>
             <label className="flex flex-col gap-1">
               <span className="text-sm text-muted-foreground">Description (optional)</span>
               <input
@@ -278,6 +270,18 @@ export default function DashboardPage() {
                 maxLength={500}
                 className="rounded-md border border-input bg-background px-3 py-2 w-full text-foreground placeholder:text-muted-foreground"
               />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Number of levels</span>
+              <select
+                value={newNumberOfLevels}
+                onChange={(e) => setNewNumberOfLevels(Number(e.target.value))}
+                className="rounded-md border border-input bg-background px-3 py-2 w-full text-foreground"
+              >
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                  <option key={n} value={n}>{n} level{n !== 1 ? 's' : ''}</option>
+                ))}
+              </select>
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-sm text-muted-foreground">Status of project</span>
@@ -316,27 +320,10 @@ export default function DashboardPage() {
                   className="rounded-md border border-input bg-background px-3 py-2 text-foreground"
                 />
               </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm text-muted-foreground">Location</span>
-                <input
-                  type="text"
-                  value={editAddress}
-                  onChange={(e) => setEditAddress(e.target.value)}
-                  className="rounded-md border border-input bg-background px-3 py-2 text-foreground"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm text-muted-foreground">Country</span>
-                <select
-                  value={editCountry}
-                  onChange={(e) => setEditCountry(e.target.value)}
-                  className="rounded-md border border-input bg-background px-3 py-2 text-foreground w-full"
-                >
-                  {COUNTRY_OPTIONS.map((c) => (
-                    <option key={c || 'blank'} value={c}>{c || 'Select country'}</option>
-                  ))}
-                </select>
-              </label>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm text-muted-foreground">Address</span>
+                <AddressForm value={editAddress} onChange={setEditAddress} labelPrefix="Project" compact />
+              </div>
               <label className="flex flex-col gap-1">
                 <span className="text-sm text-muted-foreground">Description</span>
                 <input
@@ -346,6 +333,18 @@ export default function DashboardPage() {
                   maxLength={500}
                   className="rounded-md border border-input bg-background px-3 py-2 text-foreground w-full"
                 />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm text-muted-foreground">Number of levels</span>
+                <select
+                  value={editNumberOfLevels}
+                  onChange={(e) => setEditNumberOfLevels(Number(e.target.value))}
+                  className="rounded-md border border-input bg-background px-3 py-2 text-foreground w-full"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                    <option key={n} value={n}>{n} level{n !== 1 ? 's' : ''}</option>
+                  ))}
+                </select>
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-sm text-muted-foreground">Status of project</span>

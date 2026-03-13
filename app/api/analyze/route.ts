@@ -10,15 +10,7 @@ import { persistAnalyzeResult } from '@/lib/ai/persistence';
 import { writeLogReport } from '@/lib/ai/logs';
 import { db } from '@/lib/db';
 import { project_main } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
-
-async function ensureProjectOwnership(projectId: string, userId: string): Promise<boolean> {
-  const [row] = await db
-    .select({ id: project_main.id })
-    .from(project_main)
-    .where(and(eq(project_main.id, projectId), eq(project_main.userId, userId)));
-  return !!row;
-}
+import { canAccessProject } from '@/lib/org';
 
 export async function POST(req: Request) {
   const session = await getSessionForApi();
@@ -33,7 +25,7 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    const ok = await ensureProjectOwnership(projectId, session.userId);
+    const ok = await canAccessProject(projectId, session.userId);
     if (!ok) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
     const pythonResult = await callPythonEngine('/calculate', {

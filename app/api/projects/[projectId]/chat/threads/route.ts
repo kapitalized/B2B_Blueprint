@@ -5,15 +5,8 @@ import { NextResponse } from 'next/server';
 import { getSessionForApi } from '@/lib/auth/session';
 import { db } from '@/lib/db';
 import { project_main, chat_threads } from '@/lib/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
-
-async function ensureProjectOwnership(projectId: string, userId: string): Promise<boolean> {
-  const [row] = await db
-    .select({ id: project_main.id })
-    .from(project_main)
-    .where(and(eq(project_main.id, projectId), eq(project_main.userId, userId)));
-  return !!row;
-}
+import { eq, desc } from 'drizzle-orm';
+import { canAccessProject } from '@/lib/org';
 
 export async function GET(
   _req: Request,
@@ -23,7 +16,7 @@ export async function GET(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { projectId } = await params;
   if (!projectId) return NextResponse.json({ error: 'projectId required' }, { status: 400 });
-  const ok = await ensureProjectOwnership(projectId, session.userId);
+  const ok = await canAccessProject(projectId, session.userId);
   if (!ok) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
   try {
     const threads = await db
@@ -46,7 +39,7 @@ export async function POST(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { projectId } = await params;
   if (!projectId) return NextResponse.json({ error: 'projectId required' }, { status: 400 });
-  const ok = await ensureProjectOwnership(projectId, session.userId);
+  const ok = await canAccessProject(projectId, session.userId);
   if (!ok) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
   try {
     const body = await req.json().catch(() => ({}));

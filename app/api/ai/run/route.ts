@@ -9,17 +9,12 @@ import { runPipeline } from '@/lib/ai/orchestrator';
 import { getAIModelConfig } from '@/lib/ai/model-config';
 import { persistPipelineResult } from '@/lib/ai/persistence';
 import { writeLogReport, writeLogAiRun } from '@/lib/ai/logs';
+import { indexDigestToKnowledgeNodes } from '@/lib/ai/knowledge-nodes';
+import { loadLibraryContextForPipeline } from '@/lib/ai/library-context';
 import { db } from '@/lib/db';
 import { project_main, project_files } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
-
-async function ensureProjectOwnership(projectId: string, userId: string): Promise<boolean> {
-  const [row] = await db
-    .select({ id: project_main.id })
-    .from(project_main)
-    .where(and(eq(project_main.id, projectId), eq(project_main.userId, userId)));
-  return !!row;
-}
+import { eq } from 'drizzle-orm';
+import { canAccessProject } from '@/lib/org';
 
 export async function POST(req: Request) {
   const session = await getSessionForApi();
@@ -44,11 +39,14 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    const ok = await ensureProjectOwnership(projectId, session.userId);
+    const ok = await canAccessProject(projectId, session.userId);
     if (!ok) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
     const reportType = body.reportType ?? (body.fileUrl ? 'quantity_takeoff' : 'quantity_takeoff');
     const reportTypeLabel = reportType === 'defect_audit' ? 'Defect audit' : reportType === 'quantity_takeoff' ? 'Quantity takeoff' : reportType;
+
+    const libraryContextFromDb = await loadLibraryContextForPipeline(projectId);
+    const libraryContext = { ...libraryContextFromDb, ...(body.libraryContext ?? {}) };
 
     const [projectRow] = await db
       .select({ projectName: project_main.projectName })
@@ -58,13 +56,15 @@ export async function POST(req: Request) {
 
     let inputSizeBytes: number | undefined;
     let fileName: string | undefined;
+    let fileBuildingLevel: number | null = null;
     if (fileId) {
       const [fileRow] = await db
-        .select({ fileSize: project_files.fileSize, fileName: project_files.fileName })
+        .select({ fileSize: project_files.fileSize, fileName: project_files.fileName, buildingLevel: project_files.buildingLevel })
         .from(project_files)
         .where(eq(project_files.id, fileId));
       if (fileRow?.fileSize != null) inputSizeBytes = fileRow.fileSize;
       if (fileRow?.fileName) fileName = fileRow.fileName;
+      if (fileRow?.buildingLevel != null) fileBuildingLevel = fileRow.buildingLevel;
     }
     const docFirst5 = fileName
       ? fileName.replace(/\.[^.]+$/, '').replace(/\s+/g, '-').slice(0, 5) || 'doc'
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       fileId: fileId ?? undefined,
       fileUrl: fileUrl ?? undefined,
       sourceContent: sourceContent ?? (fileUrl ? 'See attached image (floorplan/drawing).' : 'Sample document content for extraction.'),
-      libraryContext: libraryContext ?? {},
+      libraryContext,
       benchmarks: benchmarks ?? [],
       templateId: templateId ?? (fileUrl ? 'takeoff' : undefined),
     });
@@ -89,6 +89,7 @@ export async function POST(req: Request) {
     const { digestId, analysisId, reportId } = await persistPipelineResult({
       projectId,
       fileId: fileId ?? null,
+      buildingLevel: fileBuildingLevel,
       result,
       reportTitle,
       reportType,
@@ -110,6 +111,24 @@ export async function POST(req: Request) {
       source: 'pipeline',
       fileIds: fileId ? [fileId] : [],
     });
+
+    const synthesisMd = result.final_analysis?.synthesis?.content_md ?? '';
+    const rawText = result.raw_extraction != null ? '\n\n' + JSON.stringify(result.raw_extraction) : '';
+    const textToIndex = (synthesisMd + rawText).trim();
+    let knowledgeNodesIndexed = 0;
+    if (textToIndex) {
+      try {
+        const { indexed } = await indexDigestToKnowledgeNodes({
+          projectId,
+          fileId: fileId ?? null,
+          text: textToIndex,
+        });
+        knowledgeNodesIndexed = indexed;
+      } catch (e) {
+        console.error('[AI run] indexDigestToKnowledgeNodes failed:', e);
+      }
+    }
+
     const usage = result.tokenUsage as { total_prompt_tokens?: number; total_completion_tokens?: number; total_tokens?: number; total_cost?: number } | undefined;
     await writeLogAiRun({
       eventType: 'pipeline_run',
@@ -135,6 +154,7 @@ export async function POST(req: Request) {
         inputSizeMb: inputSizeBytes != null ? Math.round((inputSizeBytes / (1024 * 1024)) * 100) / 100 : undefined,
         inputPageCount: body.inputPageCount != null ? Number(body.inputPageCount) : (fileId ? 1 : undefined),
         tokenUsage: result.tokenUsage,
+        knowledgeNodesIndexed,
       },
     });
   } catch (err) {

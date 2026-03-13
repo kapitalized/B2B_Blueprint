@@ -36,22 +36,66 @@ export const user_profiles = pgTable('user_profiles', {
   planType: text('plan_type').default('free').notNull(), // 'free', 'basic', 'premium'
   stripeCustomerId: text('stripe_customer_id'),
   totalStorageUsed: integer('total_storage_used').default(0),
+  /** Default org for project create and org switcher (e.g. user's personal org). */
+  defaultOrgId: uuid('default_org_id'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+// ---- ORG (organisations & team members; prefix Org_) ----
+/** Organisations: personal (one per user) or team. Projects belong to an org. */
+export const org_organisations = pgTable('org_organisations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull(), // unique, e.g. 'acme' or 'user-abc123-personal'
+  /** Full postal/legal address for the organisation. */
+  fullAddress: text('full_address'),
+  addressLine1: text('address_line1'),
+  addressLine2: text('address_line2'),
+  addressPostcode: text('address_postcode'),
+  addressStateProvince: text('address_state_province'),
+  addressCountry: text('address_country'),
+  type: text('type').notNull().default('team'), // 'personal' | 'team'
+  stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text('stripe_subscription_id'),
+  planStatus: text('plan_status'), // 'active', 'canceled', 'past_due', etc.
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+/** Org membership and role. Owner: billing, account. Admin: members + org settings. Analyst: projects, upload, analysis, reports. */
+export const org_members = pgTable('org_members', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  orgId: uuid('org_id').references(() => org_organisations.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => user_profiles.id, { onDelete: 'cascade' }).notNull(),
+  role: text('role').notNull(), // 'owner' | 'admin' | 'analyst'
+  joinedAt: timestamp('joined_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 // ---- MODULE 2: PROJECTS & FILE MANAGEMENT ----
+/** Projects belong to an organisation. Access: project owner OR org member (any role). */
 export const project_main = pgTable('project_main', {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id').references(() => user_profiles.id),
+  orgId: uuid('org_id').references(() => org_organisations.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => user_profiles.id), // legacy/creator; access via org or this
   projectName: text('project_name').notNull(),
   projectAddress: text('project_address'),
+  addressLine1: text('address_line1'),
+  addressLine2: text('address_line2'),
+  addressPostcode: text('address_postcode'),
+  addressStateProvince: text('address_state_province'),
+  addressCountry: text('address_country'),
   projectDescription: text('project_description'), // short description
   projectObjectives: text('project_objectives'), // optional; kept for chat context
   country: text('country'),
+  /** Site type for library/compliance: e.g. house, villa, apartment, commercial */
+  siteType: text('site_type'),
   projectStatus: text('project_status'), // e.g. Design, Pre-construction, In construction, Completed
   shortId: text('short_id'), // unique 6-char for URLs e.g. /project/abc123/my-building
   slug: text('slug'), // URL slug from name e.g. my-building
+  /** Number of building levels (floors); used for floorplan upload slots and overview. */
+  numberOfLevels: integer('number_of_levels').default(1),
   status: text('status').default('active'), // 'active', 'archived', 'completed'
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -62,6 +106,8 @@ export const project_files = pgTable('project_files', {
   projectId: uuid('project_id').references(() => project_main.id),
   fileName: text('file_name').notNull(),
   fileType: text('file_type').notNull(), // 'plan', 'defect_report', 'contract'
+  /** Building level (1-based) for floorplans; null for other docs. */
+  buildingLevel: integer('building_level'),
   blobUrl: text('blob_url').notNull(),
   blobKey: text('blob_key').notNull(),
   fileSize: integer('file_size'),
@@ -73,6 +119,8 @@ export const ai_digests = pgTable('ai_digests', {
   id: uuid('id').defaultRandom().primaryKey(),
   fileId: uuid('file_id').references(() => project_files.id),
   projectId: uuid('project_id').references(() => project_main.id),
+  /** Building level (1-based) copied from file for filtering reports. */
+  buildingLevel: integer('building_level'),
   rawExtraction: jsonb('raw_extraction').notNull(),
   summary: text('summary'),
   processedAt: timestamp('processed_at').defaultNow(),
@@ -132,6 +180,8 @@ export const report_generated = pgTable('report_generated', {
   projectId: uuid('project_id').references(() => project_main.id),
   reportTitle: text('report_title').notNull(),
   reportType: text('report_type').notNull(), // 'quantity_takeoff', 'defect_audit'
+  /** Building level (1-based) when report is for a specific level. */
+  buildingLevel: integer('building_level'),
   content: text('content'),
   blobUrl: text('blob_url'),
   analysisSourceId: uuid('analysis_source_id').references(() => ai_analyses.id),

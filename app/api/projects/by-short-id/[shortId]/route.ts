@@ -6,7 +6,8 @@ import { NextResponse } from 'next/server';
 import { getSessionForApi } from '@/lib/auth/session';
 import { db } from '@/lib/db';
 import { project_main } from '@/lib/db/schema';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+import { canAccessProject } from '@/lib/org';
 
 export async function GET(
   _req: Request,
@@ -20,13 +21,11 @@ export async function GET(
   if (!shortId) {
     return NextResponse.json({ error: 'shortId required' }, { status: 400 });
   }
-  const [project] = await db
-    .select()
-    .from(project_main)
-    .where(and(eq(project_main.shortId, shortId), eq(project_main.userId, session.userId)))
-    .limit(1);
+  const [project] = await db.select().from(project_main).where(eq(project_main.shortId, shortId)).limit(1);
   if (!project) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 });
   }
+  const ok = await canAccessProject(project.id, session.userId);
+  if (!ok) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
   return NextResponse.json(project);
 }

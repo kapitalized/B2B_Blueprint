@@ -42,6 +42,9 @@ export default async function DashboardLayout({
           <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
             Dashboard
           </Link>
+          <Link href="/dashboard/organisation" className="text-sm text-muted-foreground hover:text-foreground">
+            Organisation
+          </Link>
           <Link href="/dashboard/team" className="text-sm text-muted-foreground hover:text-foreground">
             Team
           </Link>

@@ -19,6 +19,7 @@ interface ProjectFile {
   blobUrl: string;
   fileSize?: number | null;
   uploadedAt?: string | null;
+  buildingLevel?: number | null;
 }
 
 export interface AIDocumentsContentProps {
@@ -33,9 +34,12 @@ export function AIDocumentsContent({ initialProjectId }: AIDocumentsContentProps
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingLevel, setUploadingLevel] = useState<number | null>(null);
+  const [projectDetail, setProjectDetail] = useState<{ numberOfLevels: number } | null>(null);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [dragOverLevel, setDragOverLevel] = useState<number | null>(null);
 
   useEffect(() => {
     if (initialProjectId) setProjectId(initialProjectId);
@@ -66,12 +70,24 @@ export function AIDocumentsContent({ initialProjectId }: AIDocumentsContentProps
 
   useEffect(() => { loadFiles(); }, [loadFiles]);
 
-  async function uploadFile(file: File) {
+  useEffect(() => {
+    if (!projectId) return setProjectDetail(null);
+    fetch(`/api/projects/${projectId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p) => (p ? setProjectDetail({ numberOfLevels: p.numberOfLevels ?? 1 }) : setProjectDetail(null)))
+      .catch(() => setProjectDetail(null));
+  }, [projectId]);
+
+  const numberOfLevels = projectDetail?.numberOfLevels ?? 1;
+
+  async function uploadFile(file: File, level: number) {
     if (!projectId || uploading) return;
     setError(null);
     setUploading(true);
+    setUploadingLevel(level);
     const form = new FormData();
     form.append('file', file);
+    form.append('buildingLevel', String(level));
     try {
       const res = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: form });
       if (!res.ok) {
@@ -84,33 +100,34 @@ export function AIDocumentsContent({ initialProjectId }: AIDocumentsContentProps
       setError('Upload failed.');
     } finally {
       setUploading(false);
+      setUploadingLevel(null);
     }
   }
 
-  function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function onInputChange(level: number, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) uploadFile(file);
+    if (file) uploadFile(file, level);
     e.target.value = '';
   }
 
-  function onDragOver(e: React.DragEvent) {
+  function onDragOverLevel(level: number, e: React.DragEvent) {
     e.preventDefault();
     e.stopPropagation();
-    setDragOver(true);
+    setDragOverLevel(level);
   }
 
-  function onDragLeave(e: React.DragEvent) {
+  function onDragLeaveLevel(e: React.DragEvent) {
     e.preventDefault();
     e.stopPropagation();
-    setDragOver(false);
+    setDragOverLevel(null);
   }
 
-  function onDrop(e: React.DragEvent) {
+  function onDropLevel(level: number, e: React.DragEvent) {
     e.preventDefault();
     e.stopPropagation();
-    setDragOver(false);
+    setDragOverLevel(null);
     const file = e.dataTransfer.files?.[0];
-    if (file && projectId && !uploading) uploadFile(file);
+    if (file && projectId && !uploading) uploadFile(file, level);
   }
 
   async function runAnalysis(file: ProjectFile) {
@@ -197,6 +214,7 @@ export function AIDocumentsContent({ initialProjectId }: AIDocumentsContentProps
                   <thead>
                     <tr className="border-b bg-muted/50">
                       <th className="text-left p-3 font-medium">File name</th>
+                      <th className="text-left p-3 font-medium">Level</th>
                       <th className="text-left p-3 font-medium">Type</th>
                       <th className="text-left p-3 font-medium">Size</th>
                       <th className="text-left p-3 font-medium">Uploaded</th>
@@ -207,6 +225,7 @@ export function AIDocumentsContent({ initialProjectId }: AIDocumentsContentProps
                     {files.map((f) => (
                       <tr key={f.id} className="border-b last:border-0 hover:bg-muted/30">
                         <td className="p-3 font-medium truncate max-w-[200px]" title={f.fileName}>{f.fileName}</td>
+                        <td className="p-3 text-muted-foreground">{f.buildingLevel != null ? `Level ${f.buildingLevel}` : '—'}</td>
                         <td className="p-3 text-muted-foreground">{f.fileType}</td>
                         <td className="p-3 text-muted-foreground">{f.fileSize != null ? `${(f.fileSize / 1024).toFixed(1)} KB` : '—'}</td>
                         <td className="p-3 text-muted-foreground">{f.uploadedAt ? new Date(f.uploadedAt).toLocaleDateString() : '—'}</td>
@@ -228,33 +247,38 @@ export function AIDocumentsContent({ initialProjectId }: AIDocumentsContentProps
             )}
           </div>
 
-          {/* Right: Upload new document */}
-          <div className="lg:max-w-[320px]">
-            <div className="border rounded-lg bg-card overflow-hidden p-4">
-              <h2 className="font-semibold text-lg mb-2">Upload new document</h2>
-              <p className="text-sm text-muted-foreground mb-4">PDF or image. Then run analysis from the list.</p>
-              <div
-                role="button"
-                tabIndex={0}
-                onDragOver={onDragOver}
-                onDragLeave={onDragLeave}
-                onDrop={onDrop}
-                className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${dragOver ? 'bg-blue-500/15 border-blue-500 text-blue-700 dark:bg-blue-500/20 dark:border-blue-400 dark:text-blue-300' : 'bg-muted/10 hover:bg-muted/20 border-muted-foreground/25'}`}
-              >
-                <label className="cursor-pointer block">
-                  <span className={`font-medium block ${dragOver ? 'text-blue-700 dark:text-blue-300' : 'text-muted-foreground'}`}>
-                    {uploading ? 'Uploading…' : dragOver ? 'Drop to upload' : 'Drop file here or click to select'}
-                  </span>
-                  <input
-                    type="file"
-                    className="hidden"
-                    disabled={uploading}
-                    onChange={onInputChange}
-                    accept=".pdf,.png,.jpg,.jpeg,.webp"
-                  />
-                </label>
-              </div>
+          {/* Right: Upload floorplan per level */}
+          <div className="lg:max-w-[320px] space-y-4">
+            <div>
+              <h2 className="font-semibold text-lg mb-1">Upload floorplans</h2>
+              <p className="text-sm text-muted-foreground">One per level. PDF or image. Then run analysis from the list.</p>
             </div>
+            {Array.from({ length: numberOfLevels }, (_, i) => i + 1).map((level) => (
+              <div key={level} className="border rounded-lg bg-card overflow-hidden p-4">
+                <p className="text-sm font-medium mb-2">Floorplan level {level}</p>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onDragOver={(e) => onDragOverLevel(level, e)}
+                  onDragLeave={onDragLeaveLevel}
+                  onDrop={(e) => onDropLevel(level, e)}
+                  className={`border-2 border-dashed rounded-xl p-4 text-center transition-colors ${dragOverLevel === level ? 'bg-blue-500/15 border-blue-500 text-blue-700 dark:bg-blue-500/20 dark:border-blue-400 dark:text-blue-300' : 'bg-muted/10 hover:bg-muted/20 border-muted-foreground/25'}`}
+                >
+                  <label className="cursor-pointer block">
+                    <span className={`text-sm font-medium block ${dragOverLevel === level ? 'text-blue-700 dark:text-blue-300' : 'text-muted-foreground'}`}>
+                      {uploading && uploadingLevel === level ? 'Uploading…' : dragOverLevel === level ? 'Drop to upload' : 'Drop file or click'}
+                    </span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      disabled={uploading}
+                      onChange={(e) => onInputChange(level, e)}
+                      accept=".pdf,.png,.jpg,.jpeg,.webp"
+                    />
+                  </label>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

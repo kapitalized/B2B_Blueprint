@@ -1,5 +1,5 @@
 import React from 'react';
-import { DefaultTemplate } from '@payloadcms/next/templates';
+import { DefaultTemplate, type DefaultTemplateProps } from '@payloadcms/next/templates';
 
 type ServerProps = {
   initPageResult?: {
@@ -28,23 +28,22 @@ export function AdminViewLayout({
   const init = serverProps?.initPageResult ?? {};
   const visibleEntities = init.visibleEntities ?? { collections: [], globals: [] };
 
-  return (
-    <DefaultTemplate
-      collectionSlug={serverProps?.collectionConfig?.slug}
-      docID={serverProps?.docID}
-      globalSlug={serverProps?.globalConfig?.slug}
-      i18n={serverProps?.i18n}
-      locale={init.locale}
-      params={serverProps?.params}
-      payload={serverProps?.payload}
-      permissions={init.permissions}
-      req={init.req}
-      searchParams={serverProps?.searchParams}
-      user={init.req?.user}
-      viewActions={serverProps?.viewActions}
-      visibleEntities={visibleEntities}
-    >
-      {children}
-    </DefaultTemplate>
-  );
+  const templateProps: DefaultTemplateProps = {
+    collectionSlug: serverProps?.collectionConfig?.slug,
+    docID: serverProps?.docID,
+    globalSlug: serverProps?.globalConfig?.slug,
+    i18n: serverProps?.i18n as DefaultTemplateProps['i18n'],
+    locale: init.locale,
+    params: serverProps?.params,
+    payload: serverProps?.payload,
+    permissions: init.permissions,
+    req: init.req,
+    searchParams: serverProps?.searchParams,
+    user: init.req?.user,
+    viewActions: serverProps?.viewActions,
+    visibleEntities: visibleEntities as DefaultTemplateProps['visibleEntities'],
+    children,
+  };
+
+  return <DefaultTemplate {...templateProps} />;
 }

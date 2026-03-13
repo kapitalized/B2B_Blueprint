@@ -4,8 +4,9 @@
 import { NextResponse } from 'next/server';
 import { getSessionForApi } from '@/lib/auth/session';
 import { db } from '@/lib/db';
-import { chat_threads, project_main } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { chat_threads } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import { canAccessProject } from '@/lib/org';
 
 async function ensureThreadAccess(threadId: string, userId: string): Promise<boolean> {
   const [thread] = await db
@@ -13,11 +14,7 @@ async function ensureThreadAccess(threadId: string, userId: string): Promise<boo
     .from(chat_threads)
     .where(eq(chat_threads.id, threadId));
   if (!thread?.projectId) return false;
-  const [project] = await db
-    .select({ id: project_main.id })
-    .from(project_main)
-    .where(and(eq(project_main.id, thread.projectId), eq(project_main.userId, userId)));
-  return !!project;
+  return canAccessProject(thread.projectId, userId);
 }
 
 export async function PATCH(

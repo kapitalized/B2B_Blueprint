@@ -1,10 +1,8 @@
 This guide is designed for **Cursor** to act as your lead architect and developer. It explains the core logic, user journey, and how the database schema you’ve already created should be utilized during the development process.
 
-Save this as **`CONSTRUCTION_AI_FLOW.md`** and reference it when you ask Cursor to build new features.
-
 ---
 
-# **CONSTRUCTION_AI_FLOW.md**
+# **Flow of Users for a Construction AP App**
 
 ## **1. App Purpose**
 
@@ -15,7 +13,7 @@ An "Agentic" Construction Management platform that transforms static PDF plans a
 ## **2. User Types & Permissions**
 
 * **In Development Phase:** 
-Just have only free plan active - unlimited features.
+During development, treat all users as having full access (ignore plan limits)
 
 When moving to pre-production implement the tiered paid plans below.
 * **Free User (Default):** Limited to 1 project and 5 file uploads. Basic Chat only.
@@ -46,7 +44,7 @@ When moving to pre-production implement the tiered paid plans below.
 
 ### **Phase 3: The "Analysis" & Reference Library**
 
-1. **Trigger:** Either automatically upon upload or via user request.
+1. **Trigger:** During analysis the AI engine to cross-reference to the Library (if it has been implemented)
 2. **Logic:** AI cross-references the `ai_digests` with a **Reference Library** (Standard building codes, material densities, or local Bali construction standards).
 3. **Calculation:** AI calculates Wall Areas, Concrete Volumes, and Window Schedules.
 4. **Storage:** Save calculated logic into `ai_analyses`.

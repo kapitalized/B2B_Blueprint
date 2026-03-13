@@ -5,8 +5,9 @@
 import { NextResponse } from 'next/server';
 import { getSessionForApi } from '@/lib/auth/session';
 import { db } from '@/lib/db';
-import { project_main, report_generated, ai_analyses } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { report_generated, ai_analyses } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import { canAccessProject } from '@/lib/org';
 
 export async function GET(
   _req: Request,
@@ -21,11 +22,8 @@ export async function GET(
     .from(report_generated)
     .where(eq(report_generated.id, reportId));
   if (!report?.projectId) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
-  const [project] = await db
-    .select({ id: project_main.id })
-    .from(project_main)
-    .where(and(eq(project_main.id, report.projectId), eq(project_main.userId, session.userId)));
-  if (!project) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+  const ok = await canAccessProject(report.projectId, session.userId);
+  if (!ok) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
   let data_payload: unknown[] = [];
   let runMetadata: { runStartedAt?: string; runDurationMs?: number; inputSizeBytes?: number; inputPageCount?: number; inputSizeMb?: number; tokenUsage?: Record<string, unknown>; stepTrace?: Array<{ step: string; model: string; promptPreview: string; responsePreview: string; tokenUsage?: unknown; error?: string }> } | null = null;
   if (report.analysisSourceId) {

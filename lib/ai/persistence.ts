@@ -17,6 +17,8 @@ export interface RunMetadata {
 export interface PersistPipelineParams {
   projectId: string;
   fileId?: string | null;
+  /** Building level (1-based) from file, for reports/digests. */
+  buildingLevel?: number | null;
   result: PipelineResult;
   reportTitle?: string;
   reportType?: string;
@@ -31,7 +33,7 @@ export async function persistPipelineResult(params: PersistPipelineParams): Prom
   analysisId: string;
   reportId: string;
 }> {
-  const { projectId, fileId, result, reportTitle = 'AI Analysis Report', reportType = 'quantity_takeoff', runMetadata, modelsUsed } = params;
+  const { projectId, fileId, buildingLevel, result, reportTitle = 'AI Analysis Report', reportType = 'quantity_takeoff', runMetadata, modelsUsed } = params;
   const tokenUsage = result.tokenUsage ? (result.tokenUsage as unknown as Record<string, unknown>) : null;
   const modelsUsedJson = modelsUsed ? (modelsUsed as unknown as Record<string, unknown>) : null;
 
@@ -40,6 +42,7 @@ export async function persistPipelineResult(params: PersistPipelineParams): Prom
     .values({
       projectId,
       fileId: fileId ?? null,
+      buildingLevel: buildingLevel ?? null,
       rawExtraction: result.raw_extraction as unknown as Record<string, unknown>,
       summary: result.final_analysis?.synthesis?.content_md?.slice(0, 500) ?? null,
     })
@@ -80,6 +83,7 @@ export async function persistPipelineResult(params: PersistPipelineParams): Prom
       projectId,
       reportTitle,
       reportType,
+      buildingLevel: buildingLevel ?? null,
       content: synthesis?.content_md ?? null,
       analysisSourceId: analysisId,
     })

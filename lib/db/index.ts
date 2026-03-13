@@ -12,6 +12,8 @@ if (!connectionString) {
   console.warn('[db] DATABASE_URL (or DATABASE_URI) not set; Drizzle client will throw on use.');
 }
 
-const sql = neon(connectionString!);
-export const db = drizzle(sql, { schema });
+const connection = neon(connectionString!);
+export const db = drizzle(connection, { schema });
+/** Raw Neon SQL for vector/embedding and other non-Drizzle operations. */
+export const sql = connection;
 export * from './schema';

@@ -4,10 +4,13 @@
 import { NextResponse } from 'next/server';
 import { getSessionForApi } from '@/lib/auth/session';
 import { db } from '@/lib/db';
-import { chat_threads, chat_messages, project_main, project_files, ai_analyses, report_generated } from '@/lib/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { chat_threads, chat_messages, project_files, ai_analyses, report_generated } from '@/lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
 import { callOpenRouter, isOpenRouterConfigured } from '@/lib/ai/openrouter';
 import { getAIModelConfig } from '@/lib/ai/model-config';
+import { parseCitationsFromContent } from '@/lib/ai/parse-citations';
+import { searchKnowledgeNodes } from '@/lib/ai/knowledge-nodes';
+import { canAccessProject } from '@/lib/org';
 
 async function ensureThreadAccess(threadId: string, userId: string): Promise<{ thread: { id: string; projectId: string } } | null> {
   const [thread] = await db
@@ -15,11 +18,8 @@ async function ensureThreadAccess(threadId: string, userId: string): Promise<{ t
     .from(chat_threads)
     .where(eq(chat_threads.id, threadId));
   if (!thread?.projectId) return null;
-  const [project] = await db
-    .select({ id: project_main.id })
-    .from(project_main)
-    .where(and(eq(project_main.id, thread.projectId), eq(project_main.userId, userId)));
-  return project ? { thread: { id: thread.id, projectId: thread.projectId } } : null;
+  const ok = await canAccessProject(thread.projectId, userId);
+  return ok ? { thread: { id: thread.id, projectId: thread.projectId } } : null;
 }
 
 export async function GET(
@@ -65,11 +65,11 @@ export async function POST(
     .from(project_main)
     .where(eq(project_main.id, projectId));
   const files = await db
-    .select({ fileName: project_files.fileName, fileType: project_files.fileType })
+    .select({ id: project_files.id, fileName: project_files.fileName, fileType: project_files.fileType })
     .from(project_files)
     .where(eq(project_files.projectId, projectId));
   const analyses = await db
-    .select({ analysisResult: ai_analyses.analysisResult })
+    .select({ id: ai_analyses.id, analysisResult: ai_analyses.analysisResult })
     .from(ai_analyses)
     .where(eq(ai_analyses.projectId, projectId))
     .orderBy(desc(ai_analyses.createdAt))
@@ -85,15 +85,25 @@ export async function POST(
   if (project?.projectDescription) refLines.push(`Description: ${project.projectDescription}`);
   if (project?.projectObjectives) refLines.push(`Objectives: ${project.projectObjectives}`);
   if (files.length > 0) {
-    refLines.push('Uploaded documents: ' + files.map((f) => `${f.fileName} (${f.fileType})`).join(', '));
+    refLines.push('Uploaded documents (for citations use these file ids): ' + files.map((f) => `${f.fileName}=${f.id}`).join(', '));
   } else {
     refLines.push('Uploaded documents: none yet.');
   }
   if (analysisParts.length > 0) {
-    refLines.push('Reports and analyses (reference):');
+    refLines.push('Reports and analyses (for citations use these analysis ids): ' + analyses.map((a) => a.id).join(', '));
+    refLines.push('Content:');
     refLines.push(analysisParts.join('\n\n'));
   } else {
     refLines.push('Reports and analyses: none yet.');
+  }
+  try {
+    const ragHits = await searchKnowledgeNodes(projectId, content, 8);
+    if (ragHits.length > 0) {
+      refLines.push('Relevant excerpts from project documents (semantic search):');
+      refLines.push(ragHits.map((h) => h.content).join('\n\n'));
+    }
+  } catch {
+    // ignore RAG search failure
   }
   if (reportId) {
     const [report] = await db
@@ -144,7 +154,8 @@ export async function POST(
       const model = modelConfig.chat?.trim() || 'openai/gpt-4o-mini';
       const messages = [
         { role: 'system' as const, content: `You are a helpful assistant for a construction/estimation app. Answer using only the following reference (uploaded docs, reports, and the user's messages). If something is not in the reference, say so.
-When the user has selected a report for refinement, they may ask you to fix errors (e.g. missing areas, wrong numbers). Provide a corrected version: give the full revised Markdown report or quantities table they can copy and use. Use the same format as the original (Markdown table with columns like Item, Value, Unit).\n\n${ragContext}` },
+When the user has selected a report for refinement, they may ask you to fix errors (e.g. missing areas, wrong numbers). Provide a corrected version: give the full revised Markdown report or quantities table they can copy and use. Use the same format as the original (Markdown table with columns like Item, Value, Unit).
+When you cite a measurement or fact from a specific file or analysis, add at the very end of your message a single new line containing only this JSON (no other text on that line): {"citations": [{"type": "file", "id": "<file_uuid>"}]} or {"citations": [{"type": "analysis", "id": "<analysis_uuid>"}]}. Use the file and analysis ids listed in the reference. You may include multiple citations. Only add this line when you actually cite something.\n\n${ragContext}` },
         ...existing.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
         { role: 'user' as const, content },
       ];
@@ -171,9 +182,15 @@ When the user has selected a report for refinement, they may ask you to fix erro
     assistantContent = 'Chat is available when OPENROUTER_API_KEY is set. Use project Reports for analysis results.';
   }
 
+  const { content: contentForDisplay, citations } = parseCitationsFromContent(assistantContent);
   const [assistantMsg] = await db
     .insert(chat_messages)
-    .values({ threadId, role: 'assistant', content: assistantContent })
+    .values({
+      threadId,
+      role: 'assistant',
+      content: contentForDisplay,
+      citations: citations?.length ? (citations as unknown as Record<string, unknown>[]) : null,
+    })
     .returning();
   await db.update(chat_threads).set({ lastActivity: new Date() }).where(eq(chat_threads.id, threadId));
 

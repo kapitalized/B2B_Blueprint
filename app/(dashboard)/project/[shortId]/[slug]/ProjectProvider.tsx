@@ -12,6 +12,7 @@ export interface ProjectFromLayout {
   projectObjectives?: string | null;
   country?: string | null;
   projectStatus?: string | null;
+  numberOfLevels?: number | null;
 }
 
 const ProjectContext = createContext<ProjectFromLayout | null>(null);
