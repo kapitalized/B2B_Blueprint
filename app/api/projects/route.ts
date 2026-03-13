@@ -200,7 +200,7 @@ export async function POST(req: Request) {
       status: 'active',
     };
     const numberOfLevels = typeof rawLevels === 'number' && rawLevels >= 1 && rawLevels <= 20 ? rawLevels : 1;
-    let project: Awaited<ReturnType<typeof db.insert<typeof project_main>['returning']>>[0] | undefined;
+    let project: (typeof project_main.$inferSelect) | undefined;
     try {
       [project] = await db.insert(project_main).values({ ...baseValues, numberOfLevels }).returning();
     } catch (colErr: unknown) {

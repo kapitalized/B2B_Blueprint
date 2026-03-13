@@ -20,16 +20,16 @@ export async function GET(req: Request) {
     const rows = await db
       .select({
         id: project_files.id,
-        fileName: project_files.file_name,
-        fileType: project_files.file_type,
-        fileSize: project_files.file_size,
-        uploadedAt: project_files.uploaded_at,
+        fileName: project_files.fileName,
+        fileType: project_files.fileType,
+        fileSize: project_files.fileSize,
+        uploadedAt: project_files.uploadedAt,
         projectName: project_main.projectName,
         projectShortId: project_main.shortId,
       })
       .from(project_files)
       .leftJoin(project_main, eq(project_files.projectId, project_main.id))
-      .orderBy(desc(project_files.uploaded_at), desc(project_files.id))
+      .orderBy(desc(project_files.uploadedAt), desc(project_files.id))
       .limit(limit);
 
     const files = rows.map((r) => ({

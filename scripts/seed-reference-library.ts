@@ -42,7 +42,7 @@ async function seedReferenceLibrary() {
     { wall_category: 'masonry', wall_type: 'brick cavity', load_bearing: true, typical_thickness_mm: '240', density_kg_m3: '1900', bricks_per_m2: '128', mortar_kg_per_m2: '25', u_value_w_per_m2k: '1.5', source_name: 'CIBSE Guide', confidence_level: '0.85' },
     { wall_category: 'concrete', wall_type: 'precast panel', load_bearing: true, typical_thickness_mm: '150', density_kg_m3: '2400', reinforcement_kg_per_m2: '5', u_value_w_per_m2k: '3.3', source_name: 'PCI Design Handbook', confidence_level: '0.9' },
     { wall_category: 'timber', wall_type: 'stud frame', load_bearing: true, typical_thickness_mm: '140', density_kg_m3: '600', u_value_w_per_m2k: '0.45', properties: { insulation: 'mineral wool 100mm' }, source_name: 'UK Building Regs', confidence_level: '0.8' },
-  ]);
+  ] as unknown as (typeof ref_wall_types.$inferInsert)[]);
 
   await db.insert(ref_roof_types).values([
     { roof_form: 'flat', structure_material: 'concrete slab', covering_material: 'membrane', typical_span_m: '6', typical_weight_kg_per_m2: '350', concrete_intensity_m3_per_m2: '0.15', source_name: 'Building Standards', confidence_level: '0.85' },

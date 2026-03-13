@@ -10,6 +10,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url);
     const filename = searchParams.get('filename') ?? `test-${Date.now()}.txt`;
+    if (!request.body) return NextResponse.json({ ok: false, error: 'No body' }, { status: 400 });
 
     const blob = await put(filename, request.body, {
       access: 'private',

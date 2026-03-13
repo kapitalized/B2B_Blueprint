@@ -28,7 +28,6 @@ export async function POST(req: Request) {
       taskId = `task_${Date.now()}`,
       orgId = 'default',
       sourceContent,
-      libraryContext,
       benchmarks,
       templateId,
     } = body;
@@ -46,7 +45,7 @@ export async function POST(req: Request) {
     const reportTypeLabel = reportType === 'defect_audit' ? 'Defect audit' : reportType === 'quantity_takeoff' ? 'Quantity takeoff' : reportType;
 
     const libraryContextFromDb = await loadLibraryContextForPipeline(projectId);
-    const libraryContext = { ...libraryContextFromDb, ...(body.libraryContext ?? {}) };
+    const mergedLibraryContext = { ...libraryContextFromDb, ...(body.libraryContext ?? {}) };
 
     const [projectRow] = await db
       .select({ projectName: project_main.projectName })
@@ -77,10 +76,10 @@ export async function POST(req: Request) {
     const result = await runPipeline({
       taskId,
       orgId,
-      fileId: fileId ?? undefined,
+      documentId: fileId ?? undefined,
       fileUrl: fileUrl ?? undefined,
       sourceContent: sourceContent ?? (fileUrl ? 'See attached image (floorplan/drawing).' : 'Sample document content for extraction.'),
-      libraryContext,
+      libraryContext: mergedLibraryContext,
       benchmarks: benchmarks ?? [],
       templateId: templateId ?? (fileUrl ? 'takeoff' : undefined),
     });

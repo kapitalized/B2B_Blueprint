@@ -158,7 +158,6 @@ export default function DashboardPage() {
       setNewName('');
       setNewAddress({ ...EMPTY_ADDRESS });
       setNewDescription('');
-      setNewCountry('');
       setNewProjectStatus('');
       setNewNumberOfLevels(1);
       await load();

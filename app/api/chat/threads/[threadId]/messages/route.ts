@@ -4,7 +4,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionForApi } from '@/lib/auth/session';
 import { db } from '@/lib/db';
-import { chat_threads, chat_messages, project_files, ai_analyses, report_generated } from '@/lib/db/schema';
+import { chat_threads, chat_messages, project_files, project_main, ai_analyses, report_generated } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { callOpenRouter, isOpenRouterConfigured } from '@/lib/ai/openrouter';
 import { getAIModelConfig } from '@/lib/ai/model-config';

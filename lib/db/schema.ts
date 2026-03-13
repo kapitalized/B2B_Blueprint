@@ -59,6 +59,7 @@ export const org_organisations = pgTable('org_organisations', {
   stripeCustomerId: text('stripe_customer_id'),
   stripeSubscriptionId: text('stripe_subscription_id'),
   planStatus: text('plan_status'), // 'active', 'canceled', 'past_due', etc.
+  planTier: text('plan_tier'), // 'starter' | 'pro' — set from Stripe metadata/price
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

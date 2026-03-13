@@ -6,7 +6,7 @@ import { Suspense, useState, useEffect, useActionState } from 'react';
 import { authClient, isNeonAuthClientConfigured } from '@/lib/auth/client';
 import { createClient } from '@/lib/supabase/client';
 import { signInWithEmailNeon } from './actions';
-
+// supabase not used
 const supabaseConfigured = () =>
   typeof process !== 'undefined' &&
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
