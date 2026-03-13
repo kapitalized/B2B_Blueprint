@@ -2,7 +2,7 @@
 
 import { useProject } from '../ProjectProvider';
 import { ProjectNav } from '../ProjectNav';
-import { AIReportsContent } from '@/app/(dashboard)/dashboard/ai/reports/page';
+import { AIReportsContent } from '@/app/(dashboard)/dashboard/ai/reports/AIReportsContent';
 import { useParams } from 'next/navigation';
 
 export default function ProjectReportsPage() {

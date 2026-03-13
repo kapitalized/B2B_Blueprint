@@ -2,7 +2,7 @@
 
 import { useProject } from '../ProjectProvider';
 import { ProjectNav } from '../ProjectNav';
-import { AIDocumentsContent } from '@/app/(dashboard)/dashboard/ai/documents/page';
+import { AIDocumentsContent } from '@/app/(dashboard)/dashboard/ai/documents/AIDocumentsContent';
 import { useParams } from 'next/navigation';
 
 export default function ProjectDocumentsPage() {
