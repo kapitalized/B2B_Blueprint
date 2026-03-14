@@ -11,8 +11,8 @@ Next.js 15 (App Router) + Neon / Supabase + Drizzle + Payload. Follow the bluepr
 
 2. **Environment**
    - Copy `.env.example` to `.env.local`.
-   - Base stack: `DATABASE_URL` (Neon), `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, optional `BLOB_READ_WRITE_TOKEN`. See `/setup` and `docs/` in the repo.
-   - For **Admin** (`/admin`): Postgres via `DATABASE_URL` or `DATABASE_URI`.
+   - **Minimum to run (dev):** `DATABASE_URL`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`. Add `OPENROUTER_API_KEY` for AI/chat. Add `BLOB_READ_WRITE_TOKEN` for file uploads. See `docs/NEON_SETUP.md` and `docs/VERCEL_DEPLOY_STEPS.md`.
+   - For **Admin** (`/admin`): set `PAYLOAD_SECRET`; Postgres via `DATABASE_URL` or `DATABASE_URI`.
 
 3. **Run**
    - **Development:** `npm run dev` → [http://localhost:3000](http://localhost:3000)
@@ -30,6 +30,9 @@ Next.js 15 (App Router) + Neon / Supabase + Drizzle + Payload. Follow the bluepr
 
 - **Setup:** Use the `/setup` page; link Neon, Vercel Blob, env vars. See `docs/DATABASE_OPTIONS.md`, `docs/SCHEMA_SETUP.md`.
 - **Payload CMS:** Configure `collections/` and `payload.config.ts` when you need admin/CMS.
+- **Health / readiness:** `GET /api/health` (always 200). `GET /api/ready` (200 if DB reachable; for load balancers).
+- **Tests:** `npm run test` (Vitest). See `app/api/health/route.test.ts`.
+- **Chat streaming:** `POST /api/chat/threads/[threadId]/messages` with `?stream=1` or `Accept: text/event-stream` returns SSE; each event is `data: {"content":"..."}`; final event is `data: [DONE]`. See `lib/ai/stream-sse.ts`.
 
 ## Structure
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { formatDate } from '@/lib/format-date';
 
 interface ProjectRow {
   id: string;
@@ -56,7 +57,7 @@ export function ProjectsView() {
                   <td className="p-2">{p.shortId ?? '—'}</td>
                   <td className="p-2">{p.userEmail}</td>
                   <td className="p-2">{p.status ?? '—'}</td>
-                  <td className="p-2">{p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—'}</td>
+                  <td className="p-2">{p.createdAt ? formatDate(p.createdAt) : '—'}</td>
                 </tr>
               ))
             )}

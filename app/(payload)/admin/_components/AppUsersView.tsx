@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { formatDate } from '@/lib/format-date';
 
 interface AppUserRow {
   id: string;
@@ -51,7 +52,7 @@ export function AppUsersView() {
                   <td className="p-2">{u.email}</td>
                   <td className="p-2">{u.planType}</td>
                   <td className="p-2 text-right">{u.totalStorageUsed.toLocaleString()} B</td>
-                  <td className="p-2">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
+                  <td className="p-2">{u.createdAt ? formatDate(u.createdAt) : '—'}</td>
                 </tr>
               ))
             )}

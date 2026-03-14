@@ -41,6 +41,24 @@ export function getModelOptionsForSelect(): Array<{ value: string; label: string
   return OPENROUTER_MODEL_OPTIONS.map((m) => ({ value: m.id, label: m.label }));
 }
 
+/** Default model for vision extraction when the configured model does not support images. */
+export const DEFAULT_VISION_EXTRACTION_MODEL = 'google/gemini-2.0-flash-001';
+
+/** Whether the given model id is listed as vision-capable. */
+export function isVisionCapableModel(modelId: string): boolean {
+  const opt = OPENROUTER_MODEL_OPTIONS.find((m) => m.id === modelId);
+  return opt?.vision === true;
+}
+
+/**
+ * For extraction with an image: use the configured model if it supports vision,
+ * otherwise use a default vision model to avoid OpenRouter 404 "No endpoints found that support image input".
+ */
+export function getExtractionModelForVision(configuredModel: string): string {
+  if (!configuredModel?.trim()) return DEFAULT_VISION_EXTRACTION_MODEL;
+  return isVisionCapableModel(configuredModel.trim()) ? configuredModel.trim() : DEFAULT_VISION_EXTRACTION_MODEL;
+}
+
 /** Ensure current value appears in options (e.g. if it was custom or model list changed). */
 export function optionsWithCurrent(
   options: Array<{ value: string; label: string }>,

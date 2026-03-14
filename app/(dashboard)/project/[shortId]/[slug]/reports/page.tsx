@@ -13,10 +13,11 @@ export default function ProjectReportsPage() {
 
   if (!project) return <div className="p-6 text-muted-foreground">Loading…</div>;
 
+  const basePath = `/project/${shortId}/${slug}/reports`;
   return (
     <div className="space-y-4">
       <ProjectNav shortId={shortId} slug={slug} />
-      <AIReportsContent initialProjectId={project.id} />
+      <AIReportsContent initialProjectId={project.id} basePath={basePath} />
     </div>
   );
 }

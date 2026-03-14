@@ -78,12 +78,17 @@ export default function AdminAIModelsPage() {
 
   if (!config || !draft) {
     return (
-      <div>
-        <h1 className="text-2xl font-bold">AI model configuration</h1>
-        <p className="mt-2 text-muted-foreground">You need to be signed in to view and change AI models.</p>
-        <Link href="/dashboard" className="mt-4 inline-block text-sm text-primary hover:underline">
-          Back to dashboard
+      <div className="space-y-4">
+        <Link href="/dashboard/admin/usage" className="text-sm text-muted-foreground hover:text-foreground">
+          ← Usage & cost
         </Link>
+        <div>
+          <h1 className="text-2xl font-bold">AI model configuration</h1>
+          <p className="mt-2 text-muted-foreground">You need to be signed in to view and change AI models.</p>
+          <Link href="/dashboard" className="mt-4 inline-block text-sm text-primary hover:underline">
+            Back to dashboard
+          </Link>
+        </div>
       </div>
     );
   }

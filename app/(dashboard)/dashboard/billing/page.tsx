@@ -6,6 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { PLAN_DISPLAY, type PlanTier } from '@/lib/billing/config';
+import { formatDate } from '@/lib/format-date';
 
 interface BillingStatus {
   planStatus: string | null;
@@ -115,8 +116,8 @@ export default function BillingPage() {
     return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency.toLowerCase() }).format(cents / 100);
   }
 
-  function formatDate(ts: number): string {
-    return new Date(ts * 1000).toLocaleDateString(undefined, { dateStyle: 'medium' });
+  function formatInvoiceDate(ts: number): string {
+    return formatDate(new Date(ts * 1000));
   }
 
   return (
@@ -209,7 +210,7 @@ export default function BillingPage() {
               <tbody>
                 {invoices.map((inv) => (
                   <tr key={inv.id} className="border-b last:border-0">
-                    <td className="p-3">{formatDate(inv.created)}</td>
+                    <td className="p-3">{formatInvoiceDate(inv.created)}</td>
                     <td className="p-3">{inv.planName}</td>
                     <td className="p-3">{formatAmount(inv.amountPaid, inv.currency)}</td>
                     <td className="p-3 text-right">

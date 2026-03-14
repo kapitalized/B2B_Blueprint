@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { formatDateTime } from '@/lib/format-date';
 
 interface ChatRow {
   id: string;
@@ -50,7 +51,7 @@ export function ChatsView() {
                   <td className="p-2">{c.title}</td>
                   <td className="p-2">{c.projectName} {c.projectShortId ? `(${c.projectShortId})` : ''}</td>
                   <td className="p-2">{c.userEmail}</td>
-                  <td className="p-2">{c.lastActivity ? new Date(c.lastActivity).toLocaleString() : '—'}</td>
+                  <td className="p-2">{c.lastActivity ? formatDateTime(c.lastActivity) : '—'}</td>
                 </tr>
               ))
             )}

@@ -4,7 +4,8 @@
  */
 
 import { getAIModelConfig } from './model-config';
-import { getSystemPrompt } from './base-prompts';
+import { getExtractionModelForVision } from './openrouter-models';
+import { getSystemPrompt, EXTRACTION_VISION_SYSTEM, EXTRACTION_VISION_USER_PROMPT } from './base-prompts';
 import { callOpenRouter, isOpenRouterConfigured } from './openrouter';
 import { runCitationAudit, type AuditItem, type Benchmark } from './citation-audit';
 import { createAuditEntry, appendAuditEntry } from './audit-trail';
@@ -48,6 +49,8 @@ export interface ExtractionResult {
     source_span?: SourceSpan;
     coordinate_polygons?: unknown;
     raw?: unknown;
+    /** From floorplan extraction (detections.metadata.approx_area_m2). */
+    area_m2?: number;
   }>;
 }
 
@@ -75,10 +78,12 @@ export interface PipelineTokenUsage {
 /** Per-step trace for observability: what was sent and what came back. */
 export interface StepTraceEntry {
   step: 'EXTRACTION' | 'ANALYSIS' | 'SYNTHESIS';
+  /** Optional display label (e.g. "Extraction (bounding boxes)" for vision). */
+  stepLabel?: string;
   model: string;
-  /** First ~300 chars of user prompt (system prompt not included to save space). */
+  /** User prompt (system prompt not included). Longer for extraction so full instruction is visible. */
   promptPreview: string;
-  /** First ~600 chars of model response. */
+  /** Model response preview. */
   responsePreview: string;
   tokenUsage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost?: number };
   error?: string;
@@ -106,13 +111,16 @@ function stubExtraction(): ExtractionResult {
 
 function stubAnalysis(extraction: ExtractionResult): AnalysisResult {
   return {
-    items: extraction.items.map((e) => ({
-      id: e.id,
-      label: e.label,
-      value: 100,
-      unit: 'm²',
-      citation_id: e.id,
-    })),
+    items: extraction.items.map((e) => {
+      const area = (e as { area_m2?: number }).area_m2;
+      return {
+        id: e.id,
+        label: e.label,
+        value: typeof area === 'number' && area >= 0 ? area : 0,
+        unit: 'm²',
+        citation_id: e.id,
+      };
+    }),
   };
 }
 
@@ -127,9 +135,10 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
   const models = await getAIModelConfig();
 
   // Step 1: Vision or text extraction
-  const extractionBase = overrides?.extraction ?? 'Extract from the following source as structured JSON. For each item include: id, label, confidence_score (0-1), and coordinate_polygons if spatial. If the source is an image (floorplan/drawing), also estimate area_m2 when possible.';
+  const useVisionPrompt = Boolean(params.fileUrl);
+  const extractionBase = overrides?.extraction ?? (useVisionPrompt ? EXTRACTION_VISION_USER_PROMPT : 'Extract from the following source as structured JSON. For each item include: id, label, confidence_score (0-1), and coordinate_polygons if spatial. If the source is an image (floorplan/drawing), also estimate area_m2 when possible.');
   const sourceText = sourceContent ?? (params.fileUrl ? 'See attached image.' : '[No content: add fileUrl or sourceContent]');
-  const extractionPrompt = `${extractionBase} Source: ${sourceText}`;
+  const extractionPrompt = useVisionPrompt ? extractionBase : `${extractionBase} Source: ${sourceText}`;
   let raw_extraction: ExtractionResult;
   const extractionModel = models.extraction;
   const usageByStep: PipelineResult['tokenUsage'] = {
@@ -147,15 +156,16 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
       if (params.fileUrl && isPrivateBlobUrl(params.fileUrl)) {
         imageUrlForVision = await privateBlobToDataUrl(params.fileUrl);
       }
-      const extractionSystem = getSystemPrompt('EXTRACTION');
+      const extractionSystem = imageUrlForVision ? EXTRACTION_VISION_SYSTEM : getSystemPrompt('EXTRACTION');
       const userContent = imageUrlForVision
         ? [{ type: 'text' as const, text: extractionPrompt }, { type: 'image_url' as const, image_url: { url: imageUrlForVision } }]
         : extractionPrompt;
       const messages = imageUrlForVision
         ? [{ role: 'system' as const, content: extractionSystem }, { role: 'user' as const, content: userContent }]
         : [{ role: 'system' as const, content: extractionSystem }, { role: 'user' as const, content: extractionPrompt }];
+      const modelForExtraction = imageUrlForVision ? getExtractionModelForVision(extractionModel) : extractionModel;
       const { content, usage: extUsage } = await callOpenRouter({
-        model: extractionModel,
+        model: modelForExtraction,
         messages,
         max_tokens: 2048,
       });
@@ -167,11 +177,29 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
         usageByStep.total_tokens += extUsage.total_tokens;
         if (extUsage.cost != null) usageByStep.total_cost = (usageByStep.total_cost ?? 0) + extUsage.cost;
       }
-      pushTrace({ step: 'EXTRACTION', model: extractionModel, promptPreview: extractionPrompt.slice(0, 300), responsePreview: content.slice(0, 600), tokenUsage: extUsage });
-      appendAuditEntry(createAuditEntry({ runId, taskId, model: extractionModel, step: 'EXTRACTION', orgId: params.orgId, documentId }));
+      pushTrace({
+        step: 'EXTRACTION',
+        stepLabel: useVisionPrompt ? 'Extraction (bounding boxes)' : undefined,
+        model: modelForExtraction,
+        promptPreview: extractionPrompt.slice(0, 2000),
+        responsePreview: content.slice(0, 1200),
+        tokenUsage: extUsage,
+      });
+      appendAuditEntry(createAuditEntry({ runId, taskId, model: modelForExtraction, step: 'EXTRACTION', orgId: params.orgId, documentId }));
     } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      const visionHint = (errMsg.includes('404') || errMsg.includes('image input') || errMsg.includes('support image'))
+        ? ' Use a vision-capable model (e.g. Google Gemini 2.0 Flash, GPT-4o) in Admin → AI models for extraction.'
+        : '';
       raw_extraction = stubExtraction();
-      pushTrace({ step: 'EXTRACTION', model: extractionModel, promptPreview: extractionPrompt.slice(0, 300), responsePreview: '', error: e instanceof Error ? e.message : String(e) });
+      pushTrace({
+        step: 'EXTRACTION',
+        stepLabel: useVisionPrompt ? 'Extraction (bounding boxes)' : undefined,
+        model: extractionModel,
+        promptPreview: extractionPrompt.slice(0, 2000),
+        responsePreview: '',
+        error: errMsg + visionHint,
+      });
     }
   } else {
     raw_extraction = stubExtraction();
@@ -208,7 +236,7 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
       coordinate_set: undefined,
     }));
   } else {
-    const analysisBase = overrides?.analysis ?? 'Given extraction: apply constants. Output a JSON array of items with: id, label, value (number), unit, citation_id.';
+    const analysisBase = overrides?.analysis ?? 'Given extraction: apply constants. Output a JSON array of items with: id, label, value (number), unit, citation_id. For each extracted item that has area_m2, set value to that number and unit to "m²". Preserve all area values from the extraction.';
     const analysisPrompt = `${analysisBase} Extraction: ${JSON.stringify(raw_extraction)}. Constants: ${libraryStr || 'none'}.`;
     const analysisModel = models.analysis;
     if (hasKey) {
@@ -227,14 +255,30 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
           usageByStep.total_tokens += analysisUsage.total_tokens;
           if (analysisUsage.cost != null) usageByStep.total_cost = (usageByStep.total_cost ?? 0) + analysisUsage.cost;
         }
-        pushTrace({ step: 'ANALYSIS', model: analysisModel, promptPreview: analysisPrompt.slice(0, 300), responsePreview: content.slice(0, 600), tokenUsage: analysisUsage });
+        pushTrace({ step: 'ANALYSIS', model: analysisModel, promptPreview: analysisPrompt.slice(0, 1500), responsePreview: content.slice(0, 1200), tokenUsage: analysisUsage });
         appendAuditEntry(createAuditEntry({ runId, taskId, model: analysisModel, step: 'ANALYSIS', orgId: params.orgId, documentId }));
       } catch (e) {
         analysisItems = stubAnalysis(raw_extraction).items;
-        pushTrace({ step: 'ANALYSIS', model: analysisModel, promptPreview: analysisPrompt.slice(0, 300), responsePreview: '', error: e instanceof Error ? e.message : String(e) });
+        pushTrace({ step: 'ANALYSIS', model: analysisModel, promptPreview: analysisPrompt.slice(0, 1500), responsePreview: '', error: e instanceof Error ? e.message : String(e) });
       }
     } else {
       analysisItems = stubAnalysis(raw_extraction).items;
+    }
+    // Fallback: if analysis returned all zeros but extraction has area_m2, use extraction areas so plans are not reported as 0 m²
+    const extractionHasAreas = raw_extraction.items.some((i) => typeof (i as { area_m2?: number }).area_m2 === 'number' && (i as { area_m2: number }).area_m2 > 0);
+    const analysisAllZeros = analysisItems.every((i) => Number(i.value) === 0);
+    if (extractionHasAreas && analysisAllZeros) {
+      analysisItems = raw_extraction.items.map((e) => {
+        const area = (e as { area_m2?: number }).area_m2;
+        return {
+          id: e.id,
+          label: e.label,
+          value: typeof area === 'number' && area >= 0 ? area : 0,
+          unit: 'm²' as const,
+          citation_id: e.id,
+          coordinate_set: undefined,
+        };
+      });
     }
   }
 
@@ -267,11 +311,11 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
         usageByStep.total_tokens += synUsage.total_tokens;
         if (synUsage.cost != null) usageByStep.total_cost = (usageByStep.total_cost ?? 0) + synUsage.cost;
       }
-      pushTrace({ step: 'SYNTHESIS', model: synthesisModel, promptPreview: synthesisPrompt.slice(0, 300), responsePreview: synContent.slice(0, 600), tokenUsage: synUsage });
+      pushTrace({ step: 'SYNTHESIS', model: synthesisModel, promptPreview: synthesisPrompt.slice(0, 1500), responsePreview: synContent.slice(0, 1200), tokenUsage: synUsage });
       appendAuditEntry(createAuditEntry({ runId, taskId, model: synthesisModel, step: 'SYNTHESIS', orgId: params.orgId, documentId }));
     } catch (e) {
       content_md = formatStubReport(normalizedItems, audit);
-      pushTrace({ step: 'SYNTHESIS', model: synthesisModel, promptPreview: synthesisPrompt.slice(0, 300), responsePreview: '', error: e instanceof Error ? e.message : String(e) });
+      pushTrace({ step: 'SYNTHESIS', model: synthesisModel, promptPreview: synthesisPrompt.slice(0, 1500), responsePreview: '', error: e instanceof Error ? e.message : String(e) });
     }
   } else {
     content_md = formatStubReport(normalizedItems, audit);
@@ -295,12 +339,51 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
   };
 }
 
+/** Get bbox array from a detection object; Gemini/others may use bbox, bounding_box, bounds, coordinates. */
+function getBboxFromDetection(d: Record<string, unknown>): number[] | undefined {
+  const raw =
+    (d.bbox as number[] | undefined) ??
+    (d.bounding_box as number[] | undefined) ??
+    (d.bounds as number[] | undefined) ??
+    (d.coordinates as number[] | undefined);
+  if (!Array.isArray(raw) || raw.length < 4 || !raw.every((n) => typeof n === 'number')) return undefined;
+  return raw;
+}
+
+/** Detection shape from vision extraction (docs/AI_Testing_Prompt_Template.md). Accepts detections, detection, results, regions. */
+function mapDetectionsToItems(parsed: Record<string, unknown>): ExtractionResult {
+  const detections =
+    (parsed.detections as Record<string, unknown>[] | undefined) ??
+    (parsed.detection as Record<string, unknown>[] | undefined) ??
+    (parsed.results as Record<string, unknown>[] | undefined) ??
+    (parsed.regions as Record<string, unknown>[] | undefined);
+  if (!Array.isArray(detections)) return stubExtraction();
+  const items = detections.map((d, i) => {
+    const label = String(d.label ?? d.name ?? 'Unknown').trim() || `Item ${i + 1}`;
+    const id = `${String(d.category ?? d.type ?? 'item').toLowerCase()}-${i + 1}`;
+    const confidence = typeof d.confidence === 'number' ? d.confidence : 0.5;
+    const metadata = (d.metadata && typeof d.metadata === 'object' ? d.metadata : {}) as Record<string, unknown>;
+    const area_m2 = typeof (metadata as { approx_area_m2?: number }).approx_area_m2 === 'number' ? (metadata as { approx_area_m2: number }).approx_area_m2 : undefined;
+    const bbox = getBboxFromDetection(d);
+    return {
+      id,
+      label,
+      confidence_score: confidence,
+      coordinate_polygons: bbox,
+      area_m2,
+      raw: { bbox, category: d.category, metadata },
+    };
+  });
+  return { items };
+}
+
 function parseExtraction(content: string): ExtractionResult {
   try {
-    const parsed = JSON.parse(extractJson(content));
-    if (Array.isArray(parsed)) return { items: parsed };
-    if (parsed?.items) return parsed as ExtractionResult;
-    return { items: [parsed].filter(Boolean) };
+    const parsed = JSON.parse(extractJson(content)) as Record<string, unknown>;
+    if (parsed.detections ?? parsed.detection ?? parsed.results ?? parsed.regions) return mapDetectionsToItems(parsed);
+    if (Array.isArray(parsed)) return { items: parsed as ExtractionResult['items'] };
+    if (Array.isArray(parsed?.items)) return parsed as unknown as ExtractionResult;
+    return { items: [parsed].filter(Boolean) as ExtractionResult['items'] };
   } catch {
     return stubExtraction();
   }

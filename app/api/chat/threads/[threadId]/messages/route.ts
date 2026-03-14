@@ -3,14 +3,17 @@
  */
 import { NextResponse } from 'next/server';
 import { getSessionForApi } from '@/lib/auth/session';
+import { rateLimit } from '@/lib/rate-limit';
 import { db } from '@/lib/db';
 import { chat_threads, chat_messages, project_files, project_main, ai_analyses, report_generated } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { callOpenRouter, isOpenRouterConfigured } from '@/lib/ai/openrouter';
+import { callOpenRouter, callOpenRouterStream, isOpenRouterConfigured } from '@/lib/ai/openrouter';
 import { getAIModelConfig } from '@/lib/ai/model-config';
 import { parseCitationsFromContent } from '@/lib/ai/parse-citations';
+import { transformOpenRouterStreamToSSE } from '@/lib/ai/stream-sse';
 import { searchKnowledgeNodes } from '@/lib/ai/knowledge-nodes';
 import { canAccessProject } from '@/lib/org';
+import { writeLogAiRun } from '@/lib/ai/logs';
 
 async function ensureThreadAccess(threadId: string, userId: string): Promise<{ thread: { id: string; projectId: string } } | null> {
   const [thread] = await db
@@ -50,6 +53,8 @@ export async function POST(
   if (!threadId) return NextResponse.json({ error: 'threadId required' }, { status: 400 });
   const access = await ensureThreadAccess(threadId, session.userId);
   if (!access) return NextResponse.json({ error: 'Thread not found' }, { status: 404 });
+  const rateLimitRes = rateLimit(session.userId, 'chat', 30);
+  if (rateLimitRes) return rateLimitRes;
   const body = await req.json().catch(() => ({}));
   const content = typeof body.content === 'string' ? body.content.trim() : '';
   if (!content) return NextResponse.json({ error: 'content required' }, { status: 400 });
@@ -147,24 +152,75 @@ export async function POST(
   await db.insert(chat_messages).values({ threadId, role: 'user', content });
   await db.update(chat_threads).set({ lastActivity: new Date() }).where(eq(chat_threads.id, threadId));
 
+  const url = new URL(req.url);
+  const wantStream = url.searchParams.get('stream') === '1' || req.headers.get('accept')?.includes('text/event-stream');
+  const systemContent = `You are a helpful assistant for a construction/estimation app. Answer using only the following reference (uploaded docs, reports, and the user's messages). If something is not in the reference, say so.
+When the user has selected a report for refinement, they may ask you to fix errors (e.g. missing areas, wrong numbers). Provide a corrected version: give the full revised Markdown report or quantities table they can copy and use. Use the same format as the original (Markdown table with columns like Item, Value, Unit).
+When you cite a measurement or fact from a specific file or analysis, add at the very end of your message a single new line containing only this JSON (no other text on that line): {"citations": [{"type": "file", "id": "<file_uuid>"}]} or {"citations": [{"type": "analysis", "id": "<analysis_uuid>"}]}. Use the file and analysis ids listed in the reference. You may include multiple citations. Only add this line when you actually cite something.\n\n${ragContext}`;
+  const messagesForLLM = [
+    { role: 'system' as const, content: systemContent },
+    ...existing.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+    { role: 'user' as const, content },
+  ];
+
+  if (wantStream && isOpenRouterConfigured()) {
+    try {
+      const modelConfig = await getAIModelConfig();
+      const model = modelConfig.chat?.trim() || 'openai/gpt-4o-mini';
+      const stream = await callOpenRouterStream({ model, messages: messagesForLLM, max_tokens: 1024 });
+      if (stream) {
+        const outStream = transformOpenRouterStreamToSSE(stream, (fullContent) => {
+          const { content: contentForDisplay, citations } = parseCitationsFromContent(fullContent);
+          db.insert(chat_messages)
+            .values({
+              threadId,
+              role: 'assistant',
+              content: contentForDisplay,
+              citations: citations?.length ? (citations as unknown as Record<string, unknown>[]) : null,
+            })
+            .then(() => db.update(chat_threads).set({ lastActivity: new Date() }).where(eq(chat_threads.id, threadId)))
+            .catch((err) => console.error('[Chat stream] persist error:', err));
+        });
+        return new Response(outStream, {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-store',
+            Connection: 'keep-alive',
+          },
+        });
+      }
+    } catch (err) {
+      console.error('[Chat] stream error:', err);
+      // fall through to non-stream response
+    }
+  }
+
   let assistantContent: string;
   if (isOpenRouterConfigured()) {
     try {
       const modelConfig = await getAIModelConfig();
       const model = modelConfig.chat?.trim() || 'openai/gpt-4o-mini';
-      const messages = [
-        { role: 'system' as const, content: `You are a helpful assistant for a construction/estimation app. Answer using only the following reference (uploaded docs, reports, and the user's messages). If something is not in the reference, say so.
-When the user has selected a report for refinement, they may ask you to fix errors (e.g. missing areas, wrong numbers). Provide a corrected version: give the full revised Markdown report or quantities table they can copy and use. Use the same format as the original (Markdown table with columns like Item, Value, Unit).
-When you cite a measurement or fact from a specific file or analysis, add at the very end of your message a single new line containing only this JSON (no other text on that line): {"citations": [{"type": "file", "id": "<file_uuid>"}]} or {"citations": [{"type": "analysis", "id": "<analysis_uuid>"}]}. Use the file and analysis ids listed in the reference. You may include multiple citations. Only add this line when you actually cite something.\n\n${ragContext}` },
-        ...existing.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-        { role: 'user' as const, content },
-      ];
       const result = await callOpenRouter({
         model,
-        messages,
+        messages: messagesForLLM,
         max_tokens: 1024,
       });
       assistantContent = result.content;
+      if (result.usage) {
+        const u = result.usage;
+        writeLogAiRun({
+          eventType: 'chat_turn',
+          projectId,
+          userId: session.userId,
+          provider: 'openrouter',
+          model,
+          inputTokens: u.prompt_tokens,
+          outputTokens: u.completion_tokens,
+          totalTokens: u.total_tokens,
+          cost: u.cost,
+          metadata: { threadId },
+        }).catch((err) => console.error('[Chat] writeLogAiRun:', err));
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[Chat] OpenRouter error:', message);

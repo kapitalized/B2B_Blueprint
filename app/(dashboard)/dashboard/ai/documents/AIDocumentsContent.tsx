@@ -6,6 +6,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { formatDate } from '@/lib/format-date';
 
 interface Project {
   id: string;
@@ -24,9 +25,11 @@ interface ProjectFile {
 
 export interface AIDocumentsContentProps {
   initialProjectId?: string;
+  /** When set, "See report" uses short URL: baseReportsPath/reportShortId */
+  baseReportsPath?: string;
 }
 
-export function AIDocumentsContent({ initialProjectId }: AIDocumentsContentProps = {}) {
+export function AIDocumentsContent({ initialProjectId, baseReportsPath }: AIDocumentsContentProps = {}) {
   const searchParams = useSearchParams();
   const projectIdParam = initialProjectId ?? searchParams.get('projectId');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -38,6 +41,7 @@ export function AIDocumentsContent({ initialProjectId }: AIDocumentsContentProps
   const [projectDetail, setProjectDetail] = useState<{ numberOfLevels: number } | null>(null);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<{ reportId: string; reportShortId?: string | null; modelName: string } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [dragOverLevel, setDragOverLevel] = useState<number | null>(null);
 
@@ -133,6 +137,7 @@ export function AIDocumentsContent({ initialProjectId }: AIDocumentsContentProps
   async function runAnalysis(file: ProjectFile) {
     if (!projectId || analyzingId) return;
     setError(null);
+    setSuccessMessage(null);
     setAnalyzingId(file.id);
     try {
       const res = await fetch('/api/ai/run', {
@@ -145,14 +150,26 @@ export function AIDocumentsContent({ initialProjectId }: AIDocumentsContentProps
           sourceContent: `File: ${file.fileName}`,
         }),
       });
+      const data = await res.json().catch(() => ({}));
+      const apiError = (data as { error?: string }).error;
+
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError((data as { error?: string }).error ?? 'Analysis failed.');
+        const msg = apiError ?? (res.status >= 500 ? 'Server or AI provider error. OpenRouter may be temporarily unavailable — try again later.' : 'Analysis failed.');
+        setError(msg);
         return;
       }
+      if (apiError) {
+        setError(apiError);
+        return;
+      }
+      const reportId = (data as { reportId?: string }).reportId ?? (data as { persisted?: { reportId?: string } }).persisted?.reportId;
+      const reportShortId = (data as { reportShortId?: string | null }).reportShortId ?? null;
+      const modelName = (data as { modelName?: string }).modelName ?? 'AI model';
+      if (reportId) setSuccessMessage({ reportId, reportShortId, modelName });
+      else setError('Analysis completed but no report was created. Try again.');
       loadFiles();
     } catch {
-      setError('Analysis failed.');
+      setError('Network error or no response. The AI provider (OpenRouter) may be unavailable. Check your connection and try again.');
     } finally {
       setAnalyzingId(null);
     }
@@ -170,6 +187,28 @@ export function AIDocumentsContent({ initialProjectId }: AIDocumentsContentProps
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive">
           {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="rounded-lg border border-green-600/50 bg-green-500/10 px-4 py-2 text-sm text-green-800 dark:text-green-200 flex items-center justify-between gap-2 flex-wrap">
+          <span>
+            Analysis run successfully using {successMessage.modelName}.{' '}
+            <Link
+              href={baseReportsPath && successMessage.reportShortId ? `${baseReportsPath}/${successMessage.reportShortId}` : `/dashboard/ai/reports?projectId=${projectId}&reportId=${successMessage.reportId}`}
+              className="font-medium underline hover:no-underline"
+            >
+              See report
+            </Link>
+          </span>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage(null)}
+            className="text-muted-foreground hover:text-foreground shrink-0"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
         </div>
       )}
 
@@ -199,7 +238,7 @@ export function AIDocumentsContent({ initialProjectId }: AIDocumentsContentProps
                 <p className="text-sm text-muted-foreground mt-0.5">All uploaded files for this project</p>
               </div>
               {initialProjectId && (
-                <Link href={`/dashboard/ai/reports?projectId=${projectId}`} className="text-sm text-primary hover:underline shrink-0">
+                <Link href={baseReportsPath ?? `/dashboard/ai/reports?projectId=${projectId}`} className="text-sm text-primary hover:underline shrink-0">
                   View reports
                 </Link>
               )}
@@ -228,7 +267,7 @@ export function AIDocumentsContent({ initialProjectId }: AIDocumentsContentProps
                         <td className="p-3 text-muted-foreground">{f.buildingLevel != null ? `Level ${f.buildingLevel}` : '—'}</td>
                         <td className="p-3 text-muted-foreground">{f.fileType}</td>
                         <td className="p-3 text-muted-foreground">{f.fileSize != null ? `${(f.fileSize / 1024).toFixed(1)} KB` : '—'}</td>
-                        <td className="p-3 text-muted-foreground">{f.uploadedAt ? new Date(f.uploadedAt).toLocaleDateString() : '—'}</td>
+                        <td className="p-3 text-muted-foreground">{f.uploadedAt ? formatDate(f.uploadedAt) : '—'}</td>
                         <td className="p-3 text-right">
                           <button
                             type="button"

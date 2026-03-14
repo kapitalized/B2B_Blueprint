@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { formatDateTime } from '@/lib/format-date';
 
 interface FileRow {
   id: string;
@@ -60,7 +61,7 @@ export function FilesView() {
                   <td className="p-2">{f.fileType}</td>
                   <td className="p-2 text-right">{formatSize(f.fileSize)}</td>
                   <td className="p-2">{f.projectName} {f.projectShortId ? `(${f.projectShortId})` : ''}</td>
-                  <td className="p-2">{f.uploadedAt ? new Date(f.uploadedAt).toLocaleString() : '—'}</td>
+                  <td className="p-2">{f.uploadedAt ? formatDateTime(f.uploadedAt) : '—'}</td>
                 </tr>
               ))
             )}

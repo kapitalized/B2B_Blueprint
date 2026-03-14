@@ -4,6 +4,7 @@
  * Team page: list members (email, role, date added), add new member by email + role.
  */
 import { useEffect, useState } from 'react';
+import { formatDate } from '@/lib/format-date';
 
 interface Member {
   userId: string;
@@ -89,9 +90,9 @@ export default function TeamPage() {
     }
   }
 
-  const formatDate = (s: string) => {
+  const formatMemberDate = (s: string) => {
     try {
-      return new Date(s).toLocaleDateString(undefined, { dateStyle: 'medium' });
+      return formatDate(s);
     } catch {
       return s;
     }
@@ -162,7 +163,7 @@ export default function TeamPage() {
                 <tr key={m.userId} className="border-b last:border-0">
                   <td className="p-3">{m.email}</td>
                   <td className="p-3 capitalize">{m.role}</td>
-                  <td className="p-3 text-muted-foreground">{formatDate(m.joinedAt)}</td>
+                  <td className="p-3 text-muted-foreground">{formatMemberDate(m.joinedAt)}</td>
                   <td className="p-3">
                     {m.role !== 'owner' && (
                       <button

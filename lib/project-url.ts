@@ -40,3 +40,12 @@ export function projectSubPath(
   const map: Record<string, string> = { documents: 'documents', reports: 'reports', chat: 'chat', quantities: 'reports' };
   return `/dashboard/ai/${map[segment] ?? 'reports'}?projectId=${p.id}`;
 }
+
+/** Build report view URL: /project/shortId/slug/reports/reportShortId (short) or fallback to query. */
+export function reportPath(
+  p: { shortId?: string | null; slug?: string | null; id: string },
+  report: { shortId?: string | null; id: string }
+): string {
+  if (p.shortId && p.slug && report.shortId) return `/project/${p.shortId}/${p.slug}/reports/${report.shortId}`;
+  return `/dashboard/ai/reports?projectId=${p.id}&reportId=${report.id}`;
+}

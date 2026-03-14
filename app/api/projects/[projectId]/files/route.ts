@@ -10,6 +10,7 @@ import { project_main, project_files } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { isBlobConfigured } from '@/lib/blob';
 import { canAccessProject } from '@/lib/org';
+import { checkFileLimit } from '@/lib/plan-limits';
 
 export async function GET(
   _req: Request,
@@ -66,6 +67,8 @@ export async function POST(
   if (!projectId) return NextResponse.json({ error: 'projectId required' }, { status: 400 });
   const ok = await canAccessProject(projectId, session.userId);
   if (!ok) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+  const fileLimitError = await checkFileLimit(session.userId);
+  if (fileLimitError) return NextResponse.json({ error: fileLimitError }, { status: 403 });
   const formData = await req.formData();
   const file = formData.get('file') as File | null;
   if (!file || !(file instanceof File)) {

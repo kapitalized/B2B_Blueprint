@@ -133,6 +133,8 @@ export const ai_analyses = pgTable('ai_analyses', {
   analysisType: text('analysis_type').notNull(), // 'quantities', 'comparison', 'structural'
   analysisResult: jsonb('analysis_result').notNull(),
   inputSourceIds: jsonb('input_source_ids').notNull(),
+  /** Raw extraction from pipeline (items with bbox for overlay). Same run as this analysis. */
+  rawExtraction: jsonb('raw_extraction'),
   createdAt: timestamp('created_at').defaultNow(),
   // Run metadata (when from pipeline)
   runStartedAt: timestamp('run_started_at'),
@@ -178,6 +180,8 @@ export const chat_messages = pgTable('chat_messages', {
 // ---- MODULE 5: OUTPUT & REPORTS ----
 export const report_generated = pgTable('report_generated', {
   id: uuid('id').defaultRandom().primaryKey(),
+  /** Short ID for URLs e.g. /project/abc123/slug/reports/xy12ab */
+  shortId: text('short_id'),
   projectId: uuid('project_id').references(() => project_main.id),
   reportTitle: text('report_title').notNull(),
   reportType: text('report_type').notNull(), // 'quantity_takeoff', 'defect_audit'

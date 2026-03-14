@@ -108,9 +108,9 @@ export function ProjectOverview({
                 Level {level} floorplan
               </div>
               <div className="aspect-[4/3] bg-muted/50 flex items-center justify-center">
-                {imageFile ? (
+                {imageFile && project?.id ? (
                   <img
-                    src={imageFile.blobUrl}
+                    src={`/api/projects/${project.id}/files/${imageFile.id}/image`}
                     alt={imageFile.fileName}
                     className="w-full h-full object-contain"
                   />

@@ -8,6 +8,7 @@ const LINKS = [
   { href: '/admin/app-users', label: 'App users' },
   { href: '/admin/ai-models', label: 'AI models (OpenRouter)' },
   { href: '/admin/run-logs', label: 'Run logs' },
+  { href: '/dashboard/admin/usage', label: 'Usage & cost' },
   { href: '/admin/projects', label: 'Projects' },
   { href: '/admin/chats', label: 'Chats' },
   { href: '/admin/files', label: 'Files' },

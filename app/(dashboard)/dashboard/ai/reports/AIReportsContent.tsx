@@ -2,10 +2,12 @@
 
 /**
  * AI Reports — list by project, select one, view in AIReportViewer.
+ * When basePath is set (project-scoped URL), selection uses short URLs e.g. /project/x/y/reports/ab12cd.
  */
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import AIReportViewer, { type ReportForViewer } from '@/components/ai/AIReportViewer';
+import { formatDate, formatDateTime } from '@/lib/format-date';
 
 interface Project {
   id: string;
@@ -14,6 +16,7 @@ interface Project {
 
 interface ReportListItem {
   id: string;
+  shortId: string | null;
   reportTitle: string;
   reportType: string;
   createdAt: string | null;
@@ -23,15 +26,21 @@ interface ReportListItem {
 
 export interface AIReportsContentProps {
   initialProjectId?: string;
+  /** When set, selecting a report navigates to basePath/reportShortId (short URL). */
+  basePath?: string;
+  /** Initial report to select by short ID (from URL segment). */
+  initialReportShortId?: string;
 }
 
-export function AIReportsContent({ initialProjectId }: AIReportsContentProps = {}) {
+export function AIReportsContent({ initialProjectId, basePath, initialReportShortId }: AIReportsContentProps = {}) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const projectIdParam = initialProjectId ?? searchParams.get('projectId');
+  const reportIdParam = searchParams.get('reportId');
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState<string>(projectIdParam ?? '');
   const [reports, setReports] = useState<ReportListItem[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(reportIdParam ?? null);
   const [report, setReport] = useState<ReportForViewer | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [loadingList, setLoadingList] = useState(false);
@@ -39,6 +48,29 @@ export function AIReportsContent({ initialProjectId }: AIReportsContentProps = {
   useEffect(() => {
     if (initialProjectId) setProjectId(initialProjectId);
   }, [initialProjectId]);
+
+  useEffect(() => {
+    if (reportIdParam && projectId) setSelectedId(reportIdParam);
+  }, [reportIdParam, projectId]);
+
+  // Redirect dashboard?projectId=&reportId= to short URL when possible
+  useEffect(() => {
+    if (!projectIdParam || !reportIdParam || basePath) return;
+    let cancelled = false;
+    fetch(`/api/redirect-report-url?projectId=${encodeURIComponent(projectIdParam)}&reportId=${encodeURIComponent(reportIdParam)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { url?: string } | null) => {
+        if (!cancelled && data?.url) router.replace(data.url);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [projectIdParam, reportIdParam, basePath, router]);
+
+  useEffect(() => {
+    if (!initialReportShortId || !reports.length || selectedId) return;
+    const match = reports.find((r) => r.shortId === initialReportShortId);
+    if (match) setSelectedId(match.id);
+  }, [initialReportShortId, reports, selectedId]);
 
   useEffect(() => {
     fetch('/api/projects')
@@ -113,16 +145,22 @@ export function AIReportsContent({ initialProjectId }: AIReportsContentProps = {
               {reports.map((r) => {
                 const runAt = r.runStartedAt ? new Date(r.runStartedAt) : null;
                 const runLabel = runAt
-                  ? `${runAt.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })} ${runAt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
+                  ? formatDateTime(runAt)
                   : r.createdAt
-                    ? new Date(r.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                    ? formatDate(r.createdAt)
                     : null;
                 const durationLabel = r.runDurationMs != null ? `${(r.runDurationMs / 1000).toFixed(1)}s` : null;
                 return (
                   <li key={r.id}>
                     <button
                       type="button"
-                      onClick={() => setSelectedId(r.id)}
+                      onClick={() => {
+                        if (basePath && r.shortId) {
+                          router.push(`${basePath}/${r.shortId}`);
+                        } else {
+                          setSelectedId(r.id);
+                        }
+                      }}
                       className={`w-full text-left text-sm px-2 py-1.5 rounded ${selectedId === r.id ? 'bg-primary/20' : 'hover:bg-muted'}`}
                     >
                       <span className="block font-medium truncate">{r.reportTitle}</span>

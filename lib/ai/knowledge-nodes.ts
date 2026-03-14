@@ -21,14 +21,20 @@ export interface IndexDigestParams {
  */
 export async function indexDigestToKnowledgeNodes(params: IndexDigestParams): Promise<{ indexed: number }> {
   const { projectId, fileId, text, chunkOptions } = params;
-  const trimmed = text?.trim();
+  const trimmed = typeof text === 'string' ? text.trim() : '';
   if (!trimmed) return { indexed: 0 };
 
   if (!isEmbeddingsConfigured()) {
     return { indexed: 0 };
   }
 
-  const chunks = chunkText(trimmed, chunkOptions);
+  let chunks: string[];
+  try {
+    chunks = chunkText(trimmed, chunkOptions);
+  } catch (err) {
+    console.error('[indexDigestToKnowledgeNodes] chunkText failed:', err);
+    return { indexed: 0 };
+  }
   if (chunks.length === 0) return { indexed: 0 };
 
   const embeddings = await getEmbeddings(chunks);

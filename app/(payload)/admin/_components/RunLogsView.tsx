@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { formatDateTime } from '@/lib/format-date';
 
 interface RunLog {
   id: string;
@@ -35,9 +36,9 @@ export function RunLogsView() {
       .finally(() => setLoading(false));
   }, []);
 
-  function formatDate(iso: string | null) {
+  function formatRunDate(iso: string | null) {
     if (!iso) return '—';
-    return new Date(iso).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+    return formatDateTime(iso);
   }
 
   if (error) return <div className="text-red-600">{error}</div>;
@@ -68,7 +69,7 @@ export function RunLogsView() {
             ) : (
               logs.map((log) => (
                 <tr key={log.id} className="border-b last:border-0">
-                  <td className="p-2 whitespace-nowrap">{formatDate(log.runStartedAt ?? log.createdAt)}</td>
+                  <td className="p-2 whitespace-nowrap">{formatRunDate(log.runStartedAt ?? log.createdAt)}</td>
                   <td className="p-2">{log.projectName}</td>
                   <td className="p-2">{log.userEmail}</td>
                   <td className="p-2">{log.analysisType}</td>

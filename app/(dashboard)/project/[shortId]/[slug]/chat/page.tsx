@@ -43,6 +43,7 @@ export default function ProjectChatPage() {
           <Link
             href={`/dashboard?editProject=${project.id}`}
             className="text-primary hover:underline shrink-0"
+            title="Edit project details (opens dashboard)"
           >
             Edit project
           </Link>

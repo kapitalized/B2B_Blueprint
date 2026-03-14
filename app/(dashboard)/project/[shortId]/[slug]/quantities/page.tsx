@@ -4,6 +4,7 @@ import { useProject } from '../ProjectProvider';
 import { ProjectNav } from '../ProjectNav';
 import { useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
+import { formatDate } from '@/lib/format-date';
 
 interface ReportRow {
   id: string;
@@ -108,7 +109,7 @@ export default function ProjectQuantitiesPage() {
                     <span className="block truncate font-medium">{r.reportTitle}</span>
                     {r.createdAt && (
                       <span className="block text-xs mt-0.5 opacity-80">
-                        {new Date(r.createdAt).toLocaleDateString()}
+                        {formatDate(r.createdAt)}
                       </span>
                     )}
                   </button>

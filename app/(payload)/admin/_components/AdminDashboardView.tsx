@@ -6,6 +6,7 @@ const LINKS = [
   { href: '/admin/app-users', label: 'App users', description: 'Users who sign in to the app (Neon/Supabase)' },
   { href: '/admin/ai-models', label: 'AI models (OpenRouter)', description: 'Pipeline and chat model config' },
   { href: '/admin/run-logs', label: 'Run logs', description: 'AI pipeline runs and token usage' },
+  { href: '/dashboard/admin/usage', label: 'Usage & cost', description: 'AI usage and cost by model, event type, and day' },
   { href: '/admin/projects', label: 'Projects', description: 'App projects list' },
   { href: '/admin/chats', label: 'Chats', description: 'Chat threads by project' },
   { href: '/admin/files', label: 'Files', description: 'Project file uploads' },

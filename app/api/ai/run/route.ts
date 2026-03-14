@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { getSessionForApi } from '@/lib/auth/session';
+import { rateLimit } from '@/lib/rate-limit';
 import { runPipeline } from '@/lib/ai/orchestrator';
 import { getAIModelConfig } from '@/lib/ai/model-config';
 import { persistPipelineResult } from '@/lib/ai/persistence';
@@ -19,6 +20,8 @@ import { canAccessProject } from '@/lib/org';
 export async function POST(req: Request) {
   const session = await getSessionForApi();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const rateLimitRes = rateLimit(session.userId, 'ai-run', 10);
+  if (rateLimitRes) return rateLimitRes;
   try {
     const body = await req.json();
     const {
@@ -85,7 +88,7 @@ export async function POST(req: Request) {
     });
     const runDurationMs = Math.round(Date.now() - runStartedAt.getTime());
 
-    const { digestId, analysisId, reportId } = await persistPipelineResult({
+    const { digestId, analysisId, reportId, reportShortId } = await persistPipelineResult({
       projectId,
       fileId: fileId ?? null,
       buildingLevel: fileBuildingLevel,
@@ -143,9 +146,14 @@ export async function POST(req: Request) {
       metadata: { taskId, fileId: fileId ?? undefined, digestId, analysisId, reportId },
     });
 
+    const extractionModelLabel = modelsUsed.extraction?.split('/').pop() ?? modelsUsed.extraction ?? 'AI model';
+
     return NextResponse.json({
       ...result,
       persisted: { digestId, analysisId, reportId },
+      reportId,
+      reportShortId: reportShortId ?? null,
+      modelName: extractionModelLabel,
       runMetadata: {
         runStartedAt: runStartedAt.toISOString(),
         runDurationMs,

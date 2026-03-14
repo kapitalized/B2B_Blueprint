@@ -17,11 +17,10 @@ const importMapPath = path.join(__dirname, '..', 'app', '(payload)', 'admin', 'i
 let content = readFileSync(importMapPath, 'utf8');
 let changed = false;
 
-// Fix 1: Generator sometimes writes ../../../_components/ (wrong). Should be ./_components/
-if (content.includes("from '../../../_components/")) {
-  content = content.replaceAll("from '../../../_components/", "from './_components/");
-  changed = true;
-}
+// Fix 1: Generator sometimes writes ../../../_components/ or similar (wrong). Should be ./_components/
+const before = content;
+content = content.replace(/from '\.\.\/.*?_components\//g, "from './_components/");
+if (content !== before) changed = true;
 // Fix 2: Legacy pattern from before move to _components
 if (content.includes("from 'components/admin-payload/")) {
   content = content.replaceAll("from 'components/admin-payload/", "from '@/components/admin-payload/");

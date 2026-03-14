@@ -16,6 +16,7 @@ export interface OpenRouterOptions {
   model: string;
   messages: OpenRouterMessage[];
   max_tokens?: number;
+  stream?: boolean;
 }
 
 /** Token usage and cost returned by OpenRouter (see https://openrouter.ai/docs/guides/administration/usage-accounting). */
@@ -55,6 +56,7 @@ export async function callOpenRouter(options: OpenRouterOptions): Promise<OpenRo
       model: options.model,
       messages: options.messages,
       max_tokens: options.max_tokens ?? 4096,
+      stream: options.stream ?? false,
     }),
   });
 
@@ -80,4 +82,28 @@ export async function callOpenRouter(options: OpenRouterOptions): Promise<OpenRo
         }
       : undefined;
   return { content, usage };
+}
+
+/**
+ * Call OpenRouter with stream: true. Returns the raw ReadableStream from the API (OpenAI-compatible SSE).
+ * Use for streaming chat responses.
+ */
+export async function callOpenRouterStream(options: OpenRouterOptions): Promise<ReadableStream<Uint8Array> | null> {
+  if (!isOpenRouterConfigured()) return null;
+  const response = await fetch(OPENROUTER_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${API_KEY}`,
+      'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+    },
+    body: JSON.stringify({
+      model: options.model,
+      messages: options.messages,
+      max_tokens: options.max_tokens ?? 4096,
+      stream: true,
+    }),
+  });
+  if (!response.ok || !response.body) return null;
+  return response.body;
 }

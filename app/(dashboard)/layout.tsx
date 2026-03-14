@@ -6,6 +6,7 @@ import { getSessionForLayout } from '@/lib/auth/get-session-for-layout';
 import { createClient } from '@/lib/supabase/server';
 import { signOut } from '@/lib/supabase/actions';
 import { UserMenu } from '@/components/dashboard/UserMenu';
+import { HealthMonitor } from '@/components/dashboard/HealthMonitor';
 
 export default async function DashboardLayout({
   children,
@@ -39,6 +40,7 @@ export default async function DashboardLayout({
           <img src={BRAND.logo} alt={BRAND.name} className="h-7 w-auto" />
         </Link>
         <nav className="flex items-center gap-6">
+          <HealthMonitor />
           <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
             Dashboard
           </Link>

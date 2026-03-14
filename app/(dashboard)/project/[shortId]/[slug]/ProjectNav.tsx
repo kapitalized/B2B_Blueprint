@@ -12,7 +12,8 @@ export function ProjectNav({ shortId, slug }: { shortId: string; slug: string })
   const project = useProject();
   const pathname = usePathname();
   const base = `/project/${shortId}/${slug}`;
-  const is = (segment: string) => pathname === `${base}/${segment}` || (segment === '' && pathname === base);
+  const is = (segment: string) =>
+    segment === '' ? pathname === base : pathname === `${base}/${segment}` || pathname.startsWith(`${base}/${segment}/`);
   return (
     <nav className="flex flex-wrap items-center gap-1 border-b pb-2 mb-4">
       <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground mr-2">

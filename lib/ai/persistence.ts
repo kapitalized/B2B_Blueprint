@@ -4,6 +4,8 @@
 
 import { db } from '@/lib/db';
 import { ai_digests, ai_analyses, report_generated } from '@/lib/db/schema';
+import { generateShortId } from '@/lib/project-url';
+import { eq } from 'drizzle-orm';
 import type { PipelineResult } from './orchestrator';
 
 export interface RunMetadata {
@@ -32,6 +34,7 @@ export async function persistPipelineResult(params: PersistPipelineParams): Prom
   digestId: string;
   analysisId: string;
   reportId: string;
+  reportShortId: string | null;
 }> {
   const { projectId, fileId, buildingLevel, result, reportTitle = 'AI Analysis Report', reportType = 'quantity_takeoff', runMetadata, modelsUsed } = params;
   const tokenUsage = result.tokenUsage ? (result.tokenUsage as unknown as Record<string, unknown>) : null;
@@ -65,6 +68,7 @@ export async function persistPipelineResult(params: PersistPipelineParams): Prom
       analysisType: reportType,
       analysisResult: analysisPayload as unknown as Record<string, unknown>,
       inputSourceIds: fileId ? [fileId] : [],
+      rawExtraction: result.raw_extraction as unknown as Record<string, unknown>,
       runStartedAt: runMetadata?.runStartedAt ?? null,
       runDurationMs: runMetadata?.runDurationMs ?? null,
       inputSizeBytes: runMetadata?.inputSizeBytes ?? null,
@@ -77,21 +81,41 @@ export async function persistPipelineResult(params: PersistPipelineParams): Prom
   if (!analysis?.id) throw new Error('Failed to insert analysis');
   const analysisId = analysis.id;
 
-  const [report] = await db
-    .insert(report_generated)
-    .values({
-      projectId,
-      reportTitle,
-      reportType,
-      buildingLevel: buildingLevel ?? null,
-      content: synthesis?.content_md ?? null,
-      analysisSourceId: analysisId,
-    })
-    .returning({ id: report_generated.id });
+  const reportValues = {
+    projectId,
+    reportTitle,
+    reportType,
+    buildingLevel: buildingLevel ?? null,
+    content: synthesis?.content_md ?? null,
+    analysisSourceId: analysisId,
+  };
+  let report: { id: string; shortId?: string | null } | undefined;
+  let reportShortId: string | null = null;
+  try {
+    reportShortId = generateShortId();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const existing = await db.select({ id: report_generated.id }).from(report_generated).where(eq(report_generated.shortId, reportShortId)).limit(1);
+      if (existing.length === 0) break;
+      reportShortId = generateShortId();
+    }
+    const [row] = await db
+      .insert(report_generated)
+      .values({ ...reportValues, shortId: reportShortId })
+      .returning({ id: report_generated.id, shortId: report_generated.shortId });
+    report = row;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('short_id') && (msg.includes('does not exist') || msg.includes('column'))) {
+      const [row] = await db.insert(report_generated).values(reportValues).returning({ id: report_generated.id });
+      report = row ? { id: row.id } : undefined;
+      reportShortId = null;
+    } else {
+      throw err;
+    }
+  }
   if (!report?.id) throw new Error('Failed to insert report');
   const reportId = report.id;
-
-  return { digestId, analysisId, reportId };
+  return { digestId, analysisId, reportId, reportShortId: report.shortId ?? reportShortId ?? null };
 }
 
 export interface PersistAnalyzeParams {
@@ -123,10 +147,17 @@ export async function persistAnalyzeResult(params: PersistAnalyzeParams): Promis
     '|-------|-----------|-------------|',
     ...results.map((r) => `| ${r.label} | ${r.area_m2} | ${r.volume_m3} |`),
   ].join('\n');
+  let reportShortId = generateShortId();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const existing = await db.select({ id: report_generated.id }).from(report_generated).where(eq(report_generated.shortId, reportShortId)).limit(1);
+    if (existing.length === 0) break;
+    reportShortId = generateShortId();
+  }
   const [report] = await db
     .insert(report_generated)
     .values({
       projectId,
+      shortId: reportShortId,
       reportTitle: 'Quantity takeoff',
       reportType: 'quantity_takeoff',
       content: contentMd,

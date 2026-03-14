@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { formatDateTime } from '@/lib/format-date';
 
 interface RunLog {
   id: string;
@@ -42,10 +43,9 @@ export default function AdminRunLogsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  function formatDate(iso: string | null) {
+  function formatRunDate(iso: string | null) {
     if (!iso) return '—';
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+    return formatDateTime(iso);
   }
 
   function shortModel(id: string | undefined) {
@@ -57,9 +57,14 @@ export default function AdminRunLogsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/admin/ai-models" className="text-sm text-muted-foreground hover:text-foreground">
-          ← Admin (AI models)
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard/admin/ai-models" className="text-sm text-muted-foreground hover:text-foreground">
+            AI models
+          </Link>
+          <Link href="/dashboard/admin/usage" className="text-sm text-muted-foreground hover:text-foreground">
+            Usage & cost
+          </Link>
+        </div>
       </div>
       <h1 className="text-2xl font-bold">Run logs</h1>
       <p className="text-sm text-muted-foreground">
@@ -100,7 +105,7 @@ export default function AdminRunLogsPage() {
               ) : (
                 logs.map((log) => (
                   <tr key={log.id} className="border-b last:border-0 hover:bg-muted/20">
-                    <td className="p-3 whitespace-nowrap">{formatDate(log.runStartedAt ?? log.createdAt)}</td>
+                    <td className="p-3 whitespace-nowrap">{formatRunDate(log.runStartedAt ?? log.createdAt)}</td>
                     <td className="p-3">{log.projectName}</td>
                     <td className="p-3">{log.userEmail}</td>
                     <td className="p-3">{log.analysisType}</td>

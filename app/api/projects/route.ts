@@ -9,6 +9,7 @@ import { project_main } from '@/lib/db/schema';
 import { eq, desc, or, inArray } from 'drizzle-orm';
 import { generateShortId, slugify } from '@/lib/project-url';
 import { getDefaultOrgId, getOrgIdsForUser } from '@/lib/org';
+import { checkProjectLimit } from '@/lib/plan-limits';
 import { formatAddress, type Address } from '@/lib/address';
 
 export async function GET() {
@@ -152,6 +153,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'projectName is required' }, { status: 400 });
     }
     await ensureUserProfile(session);
+    const projectLimitError = await checkProjectLimit(session.userId);
+    if (projectLimitError) {
+      return NextResponse.json({ error: projectLimitError }, { status: 403 });
+    }
     let orgId: string | undefined;
     try {
       orgId = await getDefaultOrgId(session.userId);

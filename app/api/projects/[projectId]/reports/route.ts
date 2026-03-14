@@ -23,6 +23,7 @@ export async function GET(
     const reports = await db
       .select({
         id: report_generated.id,
+        shortId: report_generated.shortId,
         reportTitle: report_generated.reportTitle,
         reportType: report_generated.reportType,
         createdAt: report_generated.createdAt,
@@ -35,6 +36,7 @@ export async function GET(
       .orderBy(desc(report_generated.createdAt));
     return NextResponse.json(reports.map((r) => ({
       id: r.id,
+      shortId: r.shortId ?? null,
       reportTitle: r.reportTitle,
       reportType: r.reportType,
       createdAt: r.createdAt,
