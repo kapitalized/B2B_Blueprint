@@ -3,6 +3,7 @@
 /**
  * Draws detection bounding boxes (squares) over a floorplan image.
  * Bbox coords are normalized 0–1000 (see docs/AI_Testing_Prompt_Template.md).
+ * Offers download of the image with boxes drawn (PNG).
  */
 
 import { useRef, useEffect, useState } from 'react';
@@ -11,6 +12,31 @@ const COLORS = ['#ef4444', '#22c55e', '#3b82f6', '#eab308', '#a855f7'];
 
 function scaleCoord(val: number, dim: number): number {
   return (val / 1000) * dim;
+}
+
+function drawBoxesOnContext(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  items: { bbox: number[]; label?: string }[]
+) {
+  items.forEach((item, i) => {
+    const bbox = item.bbox;
+    if (!Array.isArray(bbox) || bbox.length < 4) return;
+    const x = scaleCoord(bbox[1], w);
+    const y = scaleCoord(bbox[0], h);
+    const width = scaleCoord(bbox[3] - bbox[1], w);
+    const height = scaleCoord(bbox[2] - bbox[0], h);
+    ctx.strokeStyle = COLORS[i % COLORS.length];
+    ctx.lineWidth = Math.max(2, Math.min(w, h) / 300);
+    ctx.strokeRect(x, y, width, height);
+    if (item.label) {
+      const fontSize = Math.max(10, Math.min(w, h) / 50);
+      ctx.font = `${fontSize}px sans-serif`;
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.fillText(item.label, x, Math.max(fontSize + 2, y - 2));
+    }
+  });
 }
 
 export interface OverlayItem {
@@ -31,6 +57,8 @@ export default function PlanOverlayViewer({ imageUrl, items, className = '' }: P
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   useEffect(() => {
     const img = imgRef.current;
@@ -44,29 +72,8 @@ export default function PlanOverlayViewer({ imageUrl, items, className = '' }: P
     canvas.width = w;
     canvas.height = h;
     ctx.clearRect(0, 0, w, h);
-
-    items.forEach((item, i) => {
-      const bbox = item.bbox;
-      if (!Array.isArray(bbox) || bbox.length < 4) return;
-      const ymin = bbox[0];
-      const xmin = bbox[1];
-      const ymax = bbox[2];
-      const xmax = bbox[3];
-      const x = scaleCoord(xmin, w);
-      const y = scaleCoord(ymin, h);
-      const width = scaleCoord(xmax - xmin, w);
-      const height = scaleCoord(ymax - ymin, h);
-
-      ctx.strokeStyle = COLORS[i % COLORS.length];
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x, y, width, height);
-
-      if (item.label) {
-        ctx.font = '12px sans-serif';
-        ctx.fillStyle = ctx.strokeStyle;
-        ctx.fillText(item.label, x, Math.max(12, y - 2));
-      }
-    });
+    ctx.lineWidth = 2;
+    drawBoxesOnContext(ctx, w, h, items);
   }, [imgSize, items]);
 
   const onImgLoad = () => {
@@ -75,6 +82,45 @@ export default function PlanOverlayViewer({ imageUrl, items, className = '' }: P
     const rect = img.getBoundingClientRect();
     setImgSize({ w: Math.round(rect.width), h: Math.round(rect.height) });
   };
+
+  async function handleDownload() {
+    const img = imgRef.current;
+    if (!img || !imageUrl || items.length === 0) return;
+    setDownloadError(null);
+    setDownloading(true);
+    try {
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      if (w === 0 || h === 0) throw new Error('Image not loaded');
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas not supported');
+      ctx.drawImage(img, 0, 0);
+      drawBoxesOnContext(ctx, w, h, items);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            setDownloadError('Export failed (image may be cross-origin)');
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `floorplan-with-boxes-${Date.now()}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        'image/png',
+        0.92
+      );
+    } catch (e) {
+      setDownloadError(e instanceof Error ? e.message : 'Download failed');
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   if (!imageUrl) {
     return (
@@ -116,7 +162,20 @@ export default function PlanOverlayViewer({ imageUrl, items, className = '' }: P
           style={{ width: imgSize.w, height: imgSize.h }}
         />
       )}
-      <p className="text-xs text-muted-foreground mt-1">{items.length} detection(s)</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <p className="text-xs text-muted-foreground">{items.length} detection(s)</p>
+        <button
+          type="button"
+          onClick={handleDownload}
+          disabled={downloading}
+          className="text-xs rounded-md border bg-background px-2 py-1.5 hover:bg-muted disabled:opacity-50"
+        >
+          {downloading ? 'Preparing…' : 'Download image with boxes'}
+        </button>
+        {downloadError && (
+          <span className="text-xs text-destructive">{downloadError}</span>
+        )}
+      </div>
     </div>
   );
 }

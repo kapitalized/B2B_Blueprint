@@ -29,17 +29,16 @@ export async function middleware(request: NextRequest) {
     const neonConfigured = !!(baseUrl && cookieSecret);
 
     if (neonConfigured) {
-      const { getSessionCookie } = await import('better-auth/cookies');
-      // Lightweight check: presence of session cookie only (no DB). Dashboard/API do full validation.
-      const sessionCookie = getSessionCookie(request, { cookiePrefix: 'neon-auth' });
-      if (isDashboard(pathname) && !sessionCookie) {
+      // Lightweight check: presence of session cookie only (no DB). Avoid importing better-auth in Edge (uses Node APIs).
+      const cookieHeader = request.headers.get('cookie') ?? '';
+      const hasSessionCookie = /(?:^|;)\s*(?:__Secure-)?neon-auth\.session_token\s*=/i.test(cookieHeader);
+      if (isDashboard(pathname) && !hasSessionCookie) {
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('next', pathname);
         return NextResponse.redirect(loginUrl);
       }
       // Neon SDK only reads cookies starting with __Secure-neon-auth. On http we set neon-auth.* (no Secure).
       // Duplicate neon-auth.* as __Secure-neon-auth.* in the request so the SDK sees them.
-      const cookieHeader = request.headers.get('cookie');
       if (cookieHeader) {
         const pairs: string[] = [];
         for (const name of ['neon-auth.session_token', 'neon-auth.local.session_data']) {

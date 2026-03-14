@@ -20,6 +20,7 @@ export default buildConfig({
           path: './_components/AdminLogo.tsx',
         },
       },
+      providers: ['./_components/AdminNavProvider.tsx#AdminNavProvider'],
       afterNavLinks: ['./_components/AdminNavLinks.tsx#AdminNavLinks'],
       views: {
         AppDashboard: {
@@ -45,6 +46,12 @@ export default buildConfig({
           path: '/run-logs',
           exact: true,
           meta: { title: 'Run logs', description: 'AI pipeline runs and token usage' },
+        },
+        Usage: {
+          Component: './_components/WithLayoutViews.tsx#UsageViewWithLayout',
+          path: '/usage',
+          exact: true,
+          meta: { title: 'Usage & cost', description: 'AI usage and cost by model, event type, and day' },
         },
         Projects: {
           Component: './_components/WithLayoutViews.tsx#ProjectsViewWithLayout',

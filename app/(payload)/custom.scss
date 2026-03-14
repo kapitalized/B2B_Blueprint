@@ -1,1 +1,15 @@
 /* Payload admin UI overrides. Keep minimal for template. */
+
+/* Admin nav (sidebar): visible on every page, expanded by default.
+   Loaded only in (payload) layout so these apply only to admin. */
+@layer payload {
+  /* Keep sidebar/nav visible and wide (Payload BEM: .nav or similar) */
+  [class*='nav'] {
+    min-width: 14rem !important;
+  }
+  aside[class*='nav'],
+  aside:first-child {
+    display: flex !important;
+    min-width: 14rem !important;
+  }
+}

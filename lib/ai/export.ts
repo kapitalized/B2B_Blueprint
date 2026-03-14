@@ -8,10 +8,22 @@ import type { AuditItem } from './citation-audit';
 
 /** Build CSV string from analysis items. Use for download. */
 export function exportToCSV(items: AuditItem[], _options?: { filename?: string }): string {
-  const headers = ['id', 'label', 'value', 'unit', 'citation_id'];
-  const rows = items.map((i) =>
-    [i.id, i.label, String(i.value), i.unit ?? '', i.citation_id ?? ''].join(',')
-  );
+  const hasConfidence = items.some((i) => i.confidence_score != null);
+  const hasLengths = items.some((i) => i.length_m != null || i.width_m != null);
+  const headers = ['id', 'label', 'value', 'unit'];
+  if (hasConfidence) headers.push('confidence_score');
+  if (hasLengths) headers.push('length_m', 'width_m');
+  headers.push('citation_id');
+  const rows = items.map((i) => {
+    const base = [i.id, i.label, String(i.value), i.unit ?? ''];
+    if (hasConfidence) base.push(i.confidence_score != null ? String(i.confidence_score) : '');
+    if (hasLengths) {
+      base.push(i.length_m != null ? String(i.length_m) : '');
+      base.push(i.width_m != null ? String(i.width_m) : '');
+    }
+    base.push(i.citation_id ?? '');
+    return base.join(',');
+  });
   const csv = [headers.join(','), ...rows].join('\n');
   return csv;
 }

@@ -10,6 +10,12 @@ export interface AuditItem {
   unit?: string;
   citation_id?: string;
   coordinate_set?: unknown;
+  /** Confidence 0–1 from extraction (e.g. room detection). Shown in report when present. */
+  confidence_score?: number;
+  /** Length in meters (dimension from plan). Used with width_m to explain area. */
+  length_m?: number;
+  /** Width in meters (dimension from plan). Used with length_m to explain area. */
+  width_m?: number;
 }
 
 export interface Benchmark {

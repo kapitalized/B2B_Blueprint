@@ -30,6 +30,8 @@ export interface OpenRouterUsage {
 
 export interface OpenRouterResult {
   content: string;
+  /** Reasoning/thinking tokens when the model returns them (e.g. Gemini thinking, Anthropic reasoning). */
+  reasoning?: string;
   usage?: OpenRouterUsage;
 }
 
@@ -66,11 +68,12 @@ export async function callOpenRouter(options: OpenRouterOptions): Promise<OpenRo
   }
 
   const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
-    cost?: number;
+    choices?: Array<{ message?: { content?: string; reasoning?: string } }>;
+    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; cost?: number };
   };
-  const content = data.choices?.[0]?.message?.content ?? '';
+  const message = data.choices?.[0]?.message;
+  const content = message?.content ?? '';
+  const reasoning = typeof message?.reasoning === 'string' ? message.reasoning : undefined;
   const usageRaw = data.usage;
   const usage: OpenRouterUsage | undefined =
     usageRaw && typeof usageRaw.prompt_tokens === 'number' && typeof usageRaw.completion_tokens === 'number'
@@ -78,10 +81,10 @@ export async function callOpenRouter(options: OpenRouterOptions): Promise<OpenRo
           prompt_tokens: usageRaw.prompt_tokens,
           completion_tokens: usageRaw.completion_tokens,
           total_tokens: usageRaw.total_tokens ?? usageRaw.prompt_tokens + usageRaw.completion_tokens,
-          cost: typeof data.cost === 'number' ? data.cost : undefined,
+          cost: typeof usageRaw.cost === 'number' ? usageRaw.cost : undefined,
         }
       : undefined;
-  return { content, usage };
+  return { content, reasoning, usage };
 }
 
 /**

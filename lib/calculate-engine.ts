@@ -31,7 +31,7 @@ export function runCalculate(payload: CalculatePayload): CalculateResult {
     const volume = area * thickness;
     return {
       id: item?.id as string | undefined,
-      label: (item?.label as string) ?? 'Unknown Component',
+      label: (item?.label as string)?.trim() || (item?.id as string) || 'Unknown Component',
       area_m2: Math.round(area * 100) / 100,
       volume_m3: Math.round(volume * 100) / 100,
       verified: true,

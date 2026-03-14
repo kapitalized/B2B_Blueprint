@@ -1,0 +1,197 @@
+{
+  "report": {
+    "id": "ac4811db-98bf-4a0e-94cd-293288a4bcc7",
+    "reportTitle": "House Modern - Quantity takeoff - 4Bedr - 2026-03-14",
+    "reportType": "quantity_takeoff",
+    "shortId": "zryps8",
+    "createdAt": "2026-03-14T11:28:37.881Z",
+    "content_md": "# Quantity Takeoff Report\n\nThis report summarizes the quantities of identified items.\n\n## Quantities\n\n| Label | Value | Unit | Length (m) | Width (m) |\n|---|---|---|---|---|\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n",
+    "data_payload": [
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      },
+      {
+        "id": "Room",
+        "unit": "m²",
+        "label": "Room",
+        "value": 0,
+        "citation_id": "Room"
+      }
+    ]
+  },
+  "pipeline": {
+    "runStartedAt": "2026-03-14T11:28:09.203Z",
+    "runDurationMs": 26324,
+    "inputSizeBytes": 48567,
+    "inputPageCount": 1,
+    "modelsUsed": {
+      "analysis": "deepseek/deepseek-r1",
+      "synthesis": "google/gemini-2.0-flash-001",
+      "extraction": "anthropic/claude-3.7-sonnet"
+    },
+    "documentSource": [
+      "4Bedroom House Floorplan.jpg"
+    ],
+    "tokenUsage": {
+      "synthesis": {
+        "cost": 0.0001945,
+        "total_tokens": 946,
+        "prompt_tokens": 613,
+        "completion_tokens": 333
+      },
+      "extraction": {
+        "cost": 0.029721,
+        "total_tokens": 3075,
+        "prompt_tokens": 1367,
+        "completion_tokens": 1708
+      },
+      "total_cost": 0.0299155,
+      "total_tokens": 4021,
+      "total_prompt_tokens": 1980,
+      "total_completion_tokens": 2041
+    },
+    "stepTrace": [
+      {
+        "step": "EXTRACTION",
+        "model": "anthropic/claude-3.7-sonnet",
+        "stepLabel": "Extraction (bounding boxes)",
+        "tokenUsage": {
+          "cost": 0.029721,
+          "total_tokens": 3075,
+          "prompt_tokens": 1367,
+          "completion_tokens": 1708
+        },
+        "promptPreview": "You are an expert Architectural Data Extraction Agent. Your task is to identify and locate every room and area in the provided floorplan image.\n\nCritical rules:\n1) **Follow the walls, not the page.** The image may have white margin or empty space. Each box must align with the **drawn wall lines** that define the room—not the page edge. Place box edges exactly along the interior and exterior walls you see.\n\n2) **One entry per room.** Output a separate room for every distinct space. Do not merge two rooms. Use visible wall boundaries to split them (e.g. two bedrooms side by side = two rooms with two box_2d).\n\n3) **Use the labels on the plan.** If the plan has text (e.g. \"Garage\", \"Storage\", \"Bedroom\", \"Bath\"), use that exact name. Preserve Bedroom, Bath, Kitchen, Living Room, Office, Laundry, Porch, Entry, Walk-in Closet, Powder Bath, Hall, etc. as labeled.\n\n4) **Coordinates — use this schema.** Measure in image pixels from the top-left of the image (including any margin). For each room output box_2d as [x_min, y_min, x_max, y_max]: left edge, top edge, right edge, bottom edge. Also output canvas_size with the total width and height in pixels of the floorplan image (so coordinates can be scaled). This avoids axis confusion and wrong boxes.\n\n5) **Tight boxes.** Each box_2d must tightly enclose a single room by tracing the walls that enclose it.\n\n6) **Optional: layout_reasoning.** Briefly explain your spatial logic (how you placed rooms to avoid overlaps and maintain flow). Optional: for each room, list \"connections\" — names of rooms this room shares a wall or doorway with.\n\n7) **Optional: area.** If dimension lines (meters) are visible, add metadata per room: approx_area_m2, length_m, width_m.\n\nOutput format: Return ONLY a valid JSON object. No markdown, no text outside the JSON.\n\n{\n  \"layout_reasoning\": \"Step-by-step: how you placed rooms to avoid overlaps and match the plan.\",\n  \"canvas_size\": { \"width\": 1000, \"height\": 800 },\n  \"rooms\": [\n    {\n      \"name\": \"Exact ",
+        "responsePreview": "{\n  \"layout_reasoning\": \"I identified rooms by following the drawn wall lines and labels on the floorplan. Each room is enclosed by a tight bounding box along its walls. The floorplan shows a single-story home with bedrooms on both sides, a central hallway, and an open concept kitchen/living area. The garage is positioned on the left side with storage adjacent to it.\",\n  \"canvas_size\": {\"width\": 771, \"height\": 562},\n  \"rooms\": [\n    {\n      \"name\": \"Bedroom\",\n      \"box_2d\": [43, 82, 172, 209],\n      \"connections\": [\"Bath\", \"Hall\", \"Walk-in Closet\"],\n      \"metadata\": {\"approx_area_m2\": 12.17, \"length_m\": 3.7, \"width_m\": 3.29}\n    },\n    {\n      \"name\": \"Bedroom\",\n      \"box_2d\": [173, 82, 296, 209],\n      \"connections\": [\"Bath\", \"Hall\", \"Porch\"],\n      \"metadata\": {\"approx_area_m2\": 11.42, \"length_m\": 3.47, \"width_m\": 3.29}\n    },\n    {\n      \"name\": \"Bath\",\n      \"box_2d\": [43, 210, 172, 283],\n      \"connections\": [\"Bedroom\", \"Walk-in Closet\"],\n      \"metadata\": {\"approx_area_m2\": 6.59, \"length_m\": 3.29, \"width_m\": 2.00}\n    },\n    {\n      \"name\": \"Bath\",\n      \"box_2d\": [173, 210, 296, 283],\n      \"connections\": [\"Bedroom\", \"Hall\"],\n      \"metadata\": {\"approx_area_m2\": 6.59, \"le"
+      },
+      {
+        "step": "SYNTHESIS",
+        "model": "google/gemini-2.0-flash-001",
+        "tokenUsage": {
+          "cost": 0.0001945,
+          "total_tokens": 946,
+          "prompt_tokens": 613,
+          "completion_tokens": 333
+        },
+        "promptPreview": "Produce a short Markdown quantity takeoff report: title, summary sentence, a table of all items (Label, Value, Unit), and optional CRITICAL WARNING section if any. Use ## for sections and | for the table. Items: [{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\":\"Room\"},{\"id\":\"Room\",\"label\":\"Room\",\"value\":0,\"unit\":\"m²\",\"citation_id\"",
+        "responsePreview": "# Quantity Takeoff Report\n\nThis report summarizes the quantities of identified items.\n\n## Quantities\n\n| Label | Value | Unit | Length (m) | Width (m) |\n|---|---|---|---|---|\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n| Room | 0 | m² | 0 | 0 |\n"
+      }
+    ]
+  }
+}

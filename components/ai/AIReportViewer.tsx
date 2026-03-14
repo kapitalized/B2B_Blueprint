@@ -4,7 +4,7 @@
  * Report viewer: markdown content, data table, pipeline step trace, CSV export, and detection overlay.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { downloadCSV } from '@/lib/ai/export';
 import type { AuditItem } from '@/lib/ai/citation-audit';
@@ -18,13 +18,17 @@ export interface StepTraceEntry {
   model: string;
   promptPreview: string;
   responsePreview: string;
+  /** Reasoning/thinking tokens when the model returns them. */
+  reasoningPreview?: string;
   tokenUsage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost?: number };
   error?: string;
 }
 
 export interface ReportForViewer {
   id?: string;
+  shortId?: string | null;
   reportTitle?: string;
+  reportType?: string | null;
   content_md?: string | null;
   content?: string | null;
   data_payload?: unknown[];
@@ -130,9 +134,91 @@ function PipelineStepsSection({ steps }: { steps: StepTraceEntry[] }) {
                   <span className="text-muted-foreground font-medium">Response (preview):</span>
                   <pre className="mt-0.5 p-2 rounded bg-muted/50 overflow-x-auto whitespace-pre-wrap break-words max-h-48 overflow-y-auto text-xs">{s.responsePreview || (s.error ? '—' : '—')}</pre>
                 </div>
+                {s.reasoningPreview && (
+                  <div>
+                    <span className="text-muted-foreground font-medium">Reasoning (preview):</span>
+                    <pre className="mt-0.5 p-2 rounded bg-amber-500/10 border border-amber-500/20 overflow-x-auto whitespace-pre-wrap break-words max-h-48 overflow-y-auto text-xs">{s.reasoningPreview}</pre>
+                  </div>
+                )}
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Build a single JSON object for pipeline + report output, easy to copy. */
+function buildReportJson(report: ReportForViewer | null | undefined): string {
+  if (!report) return '{}';
+  const run = report.runMetadata;
+  const out = {
+    report: {
+      id: report.id,
+      reportTitle: report.reportTitle ?? null,
+      reportType: report.reportType ?? null,
+      shortId: report.shortId ?? null,
+      createdAt: report.createdAt ?? null,
+      content_md: report.content_md ?? report.content ?? null,
+      data_payload: report.data_payload ?? [],
+    },
+    pipeline: run
+      ? {
+          runStartedAt: run.runStartedAt ?? null,
+          runDurationMs: run.runDurationMs ?? null,
+          inputSizeBytes: run.inputSizeBytes ?? null,
+          inputPageCount: run.inputPageCount ?? null,
+          modelsUsed: run.modelsUsed ?? null,
+          documentSource: run.documentSource ?? null,
+          tokenUsage: run.tokenUsage ?? null,
+          stepTrace: run.stepTrace ?? null,
+        }
+      : null,
+  };
+  return JSON.stringify(out, null, 2);
+}
+
+function CopyReportJsonSection({ report }: { report: ReportForViewer | null | undefined }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const json = useCallback(() => buildReportJson(report), [report]);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(json()).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      },
+      () => {}
+    );
+  }, [json]);
+
+  return (
+    <div className="border rounded-lg bg-muted/20 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left text-sm font-medium text-foreground hover:bg-muted/30"
+      >
+        <span>Pipeline & report (JSON)</span>
+        <span className="text-muted-foreground">{open ? '▼' : '▶'}</span>
+      </button>
+      {open && (
+        <div className="border-t p-4 space-y-2">
+          <p className="text-xs text-muted-foreground">Copy this JSON for the pipeline and report output.</p>
+          <div className="relative">
+            <pre className="p-3 rounded bg-muted/50 border text-xs overflow-x-auto overflow-y-auto max-h-80 whitespace-pre-wrap break-words font-mono">
+              {json()}
+            </pre>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="mt-2 text-sm px-3 py-1.5 rounded-md border bg-background hover:bg-muted font-medium"
+            >
+              {copied ? 'Copied!' : 'Copy JSON'}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -250,6 +336,9 @@ export default function AIReportViewer({ report, isLoading }: AIReportViewerProp
           </button>
         </div>
       )}
+
+      {/* Pipeline & report as JSON — easy to copy */}
+      <CopyReportJsonSection report={report} />
 
       {!content && items.length === 0 && (
         <p className="text-muted-foreground text-sm">No content. Run the pipeline from Documents to generate reports.</p>

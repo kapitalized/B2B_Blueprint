@@ -4,45 +4,39 @@
  */
 
 /** Vision extraction: architectural bounding boxes. Use when input is a floorplan image. See docs/AI_Testing_Prompt_Template.md. */
-export const EXTRACTION_VISION_USER_PROMPT = `You are an expert Architectural Data Extraction Agent. Your task is to identify and locate structural elements in the provided floorplan.
+export const EXTRACTION_VISION_USER_PROMPT = `You are an expert Architectural Data Extraction Agent. Your task is to identify and locate every room and area in the provided floorplan image.
 
-Instructions:
-- Analyze the uploaded floorplan image.
-- Identify all instances of: rooms (bedrooms, bathrooms, kitchen, living, etc.), slabs (concrete floor areas), openings (windows and doors).
-- For every room and slab you must estimate and include approx_area_m2 in metadata (use scale, dimensions, or legend if visible; otherwise estimate from typical proportions). Openings may omit approx_area_m2.
-- Locate each element using a bounding box. Format coordinates as [ymin, xmin, ymax, xmax].
-- Use normalized coordinates where 0 is the top-left and 1000 is the bottom-right of the image.
-- Use confidence < 0.7 when the element type or boundary is uncertain.
+Critical rules:
+1) **Follow the walls, not the page.** The image may have white margin or empty space. Each box must align with the **drawn wall lines** that define the room—not the page edge. Place box edges exactly along the interior and exterior walls you see.
 
-Output format: Return ONLY a valid JSON object. Do not include any conversational text or markdown code blocks outside the JSON.
+2) **One entry per room.** Output a separate room for every distinct space. Do not merge two rooms. Use visible wall boundaries to split them (e.g. two bedrooms side by side = two rooms with two box_2d).
+
+3) **Use the labels on the plan.** If the plan has text (e.g. "Garage", "Storage", "Bedroom", "Bath"), use that exact name. Preserve Bedroom, Bath, Kitchen, Living Room, Office, Laundry, Porch, Entry, Walk-in Closet, Powder Bath, Hall, etc. as labeled.
+
+4) **Coordinates — use this schema.** Measure in image pixels from the top-left of the image (including any margin). For each room output box_2d as [x_min, y_min, x_max, y_max]: left edge, top edge, right edge, bottom edge. Also output canvas_size with the total width and height in pixels of the floorplan image (so coordinates can be scaled). This avoids axis confusion and wrong boxes.
+
+5) **Tight boxes.** Each box_2d must tightly enclose a single room by tracing the walls that enclose it.
+
+6) **Optional: layout_reasoning.** Briefly explain your spatial logic (how you placed rooms to avoid overlaps and maintain flow). Optional: for each room, list "connections" — names of rooms this room shares a wall or doorway with.
+
+7) **Optional: area.** If dimension lines (meters) are visible, add metadata per room: approx_area_m2, length_m, width_m.
+
+Output format: Return ONLY a valid JSON object. No markdown, no text outside the JSON.
 
 {
-  "project_metadata": {
-    "detected_scale": "e.g., 1:100",
-    "unit_system": "metric"
-  },
-  "detections": [
+  "layout_reasoning": "Step-by-step: how you placed rooms to avoid overlaps and match the plan.",
+  "canvas_size": { "width": 1000, "height": 800 },
+  "rooms": [
     {
-      "label": "Room Name (e.g., Master Bedroom)",
-      "category": "room",
-      "bbox": [ymin, xmin, ymax, xmax],
-      "confidence": 0.95,
-      "metadata": {
-        "floor_material": "concrete",
-        "approx_area_m2": 15.4
-      }
-    },
-    {
-      "label": "Window",
-      "category": "opening",
-      "bbox": [ymin, xmin, ymax, xmax],
-      "confidence": 0.88,
-      "metadata": {
-        "type": "sliding"
-      }
+      "name": "Exact label from plan (e.g. Garage, Bedroom, Bath)",
+      "box_2d": [x_min, y_min, x_max, y_max],
+      "connections": ["Hall", "Kitchen"],
+      "metadata": { "approx_area_m2": 15.4, "length_m": 3.7, "width_m": 4.2 }
     }
   ]
-}`;
+}
+
+Alternative (legacy): You may instead output detections with bbox [ymin, xmin, ymax, xmax] in 0–1000 normalized space; we accept both.`;
 
 /** System message for vision extraction (keeps model to JSON-only). */
 export const EXTRACTION_VISION_SYSTEM = `You are an expert Architectural Data Extraction Agent. Output only valid JSON. Do not wrap the JSON in markdown code blocks or add any text before or after.`;
@@ -57,12 +51,13 @@ Output only valid JSON, no markdown code fences or extra text.`,
   ANALYSIS: `You are an expert at construction quantity and cost analysis.
 Your task: take the extracted items (JSON) and produce a JSON array of items with: id, label, value (number), unit, citation_id.
 When an extracted item has area_m2, set value to that number and unit to "m²". Preserve every area from the extraction; do not output 0 for items that have area_m2.
+When an extracted item has length_m or width_m (dimensions in meters), include them in the output so the report can show lengths used for the area.
 Apply any given constants (densities, rates) only when relevant. Use the extraction id as citation_id. Be precise with units.`,
 
   SYNTHESIS: `You are an expert at writing short construction and quantity takeoff reports.
-Your task: turn the analysis items into a clear, concise Markdown report: brief summary, a table of quantities (item, value, unit), and if there are critical warnings, add a "CRITICAL WARNING" section.
+Your task: turn the analysis items into a clear, concise Markdown report: brief summary, a table of quantities (item, value, unit, and when present: length_m, width_m, confidence), and if there are critical warnings, add a "CRITICAL WARNING" section.
 Use Markdown tables and headings. Keep the report scannable and professional.
-Important: In the quantities table, every row must show a numeric value. Use 0 if a value is missing; never write "nil", "null", "N/A", or leave value cells empty.`,
+Important: In the quantities table, every row must show a numeric value. Use 0 if a value is missing; never write "nil", "null", "N/A", or leave value cells empty. Include length (m) and width (m) columns when the items have those dimensions.`,
 } as const;
 
 export type PipelineStep = keyof typeof SYSTEM_PROMPTS;

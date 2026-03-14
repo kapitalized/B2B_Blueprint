@@ -2,6 +2,8 @@ Vision Model Extraction Prompt: Architectural Bounding Boxes
 
 **Implemented in:** `lib/ai/base-prompts.ts` (EXTRACTION_VISION_*) and `lib/ai/orchestrator.ts` (used when `fileUrl` is set). Drawing: `lib/ai/bbox-utils.ts`.
 
+When a floorplan image is uploaded, the pipeline always uses this vision prompt (template overrides do not replace it) so that bounding boxes are returned in normalized image coordinates 0–1000. The prompt instructs the model to: (1) align boxes to wall lines, not page edges; (2) output one detection per room (no merging); (3) use the plan’s labels (e.g. Garage vs Storage); (4) draw tight boxes per room.
+
 ---
 
 RoleYou are an expert Architectural Data Extraction Agent. Your task is to identify and locate structural elements in the provided floorplan.InstructionsAnalyze the uploaded floorplan image.Identify all instances of the following elements:rooms (bedrooms, bathrooms, kitchen, living, etc.)slabs (concrete floor areas)openings (windows and doors)Locate each element using a bounding box.Format the coordinates as [ymin, xmin, ymax, xmax].Important: Use normalized coordinates where 0 is the top-left and 1000 is the bottom-right of the image.Output FormatReturn ONLY a valid JSON object. Do not include any conversational text or markdown blocks outside the JSON.{
@@ -41,3 +43,20 @@ const height = scaleCoordinate(detection.bbox[2] - detection.bbox[0], imgHeight)
 
 ctx.strokeStyle = 'red';
 ctx.strokeRect(x, y, width, height);
+```
+
+---
+
+## Schema comparison (supported by orchestrator)
+
+The orchestrator accepts two extraction shapes:
+
+| Aspect | **Preferred (rooms + canvas)** | **Legacy (detections)** |
+|--------|--------------------------------|--------------------------|
+| Root | `layout_reasoning`, `canvas_size`, `rooms` | `detections` (or detection/results/regions/objects) |
+| Bbox | `rooms[].box_2d`: `[x_min, y_min, x_max, y_max]` in **image pixels** | `detections[].bbox`: `[ymin, xmin, ymax, xmax]` in **0–1000** |
+| Size | `canvas_size`: `{ width, height }` (pixels) used to normalize to 0–1000 | N/A (already 0–1000) |
+| Name | `rooms[].name` | `detections[].label` or `name` |
+| Optional | `rooms[].connections`, `rooms[].metadata` (approx_area_m2, length_m, width_m) | `metadata`, confidence |
+
+Internal representation after parsing is always normalized bbox `[ymin, xmin, ymax, xmax]` in 0–1000 for overlay and report.
