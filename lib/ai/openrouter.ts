@@ -17,6 +17,8 @@ export interface OpenRouterOptions {
   messages: OpenRouterMessage[];
   max_tokens?: number;
   stream?: boolean;
+  /** Lower values (e.g. 0.2) reduce hallucination for extraction. */
+  temperature?: number;
 }
 
 /** Token usage and cost returned by OpenRouter (see https://openrouter.ai/docs/guides/administration/usage-accounting). */
@@ -59,6 +61,7 @@ export async function callOpenRouter(options: OpenRouterOptions): Promise<OpenRo
       messages: options.messages,
       max_tokens: options.max_tokens ?? 4096,
       stream: options.stream ?? false,
+      ...(typeof options.temperature === 'number' ? { temperature: options.temperature } : {}),
     }),
   });
 

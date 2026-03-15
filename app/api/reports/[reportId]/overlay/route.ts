@@ -78,9 +78,11 @@ function extractJsonFromText(text: string): string {
   return text;
 }
 
+export type OverlayItemShape = { id: string; label: string; confidence_score?: number; bbox: number[] };
+
 /** Build overlay items from raw extraction: supports items[], rooms[]+box_2d+canvas_size, detections[], and alternate bbox keys. */
-function extractOverlayItems(raw: Record<string, unknown> | null | undefined): { id: string; label: string; confidence_score?: number; bbox: number[] }[] {
-  const out: { id: string; label: string; confidence_score?: number; bbox: number[] }[] = [];
+function extractOverlayItems(raw: Record<string, unknown> | null | undefined): OverlayItemShape[] {
+  const out: OverlayItemShape[] = [];
   const items = raw?.items as ExtractionItem[] | undefined;
   const rooms = raw?.rooms as Array<Record<string, unknown>> | undefined;
   const canvas = raw?.canvas_size as { width?: number; height?: number } | undefined;
@@ -137,6 +139,29 @@ function extractOverlayItems(raw: Record<string, unknown> | null | undefined): {
         });
       }
     });
+  }
+  return out;
+}
+
+/** Build overlay list from raw.windows or raw.doors (each has id, label?, coordinate_polygons). */
+function extractOverlayWindowsDoors(
+  raw: Record<string, unknown> | null | undefined,
+  key: 'windows' | 'doors'
+): OverlayItemShape[] {
+  const arr = (raw?.[key] ?? (raw as Record<string, unknown>)?.[key === 'windows' ? 'Windows' : 'Doors']) as Array<{ id?: string; label?: string; coordinate_polygons?: unknown }> | undefined;
+  if (!Array.isArray(arr)) return [];
+  const out: OverlayItemShape[] = [];
+  const prefix = key === 'windows' ? 'Window' : 'Door';
+  for (let i = 0; i < arr.length; i++) {
+    const r = arr[i];
+    const bbox = toFlatBbox(r?.coordinate_polygons);
+    if (bbox) {
+      out.push({
+        id: (r?.id && String(r.id).trim()) || `${prefix} ${i + 1}`,
+        label: (r?.label && String(r.label).trim()) || `${prefix} ${i + 1}`,
+        bbox,
+      });
+    }
   }
   return out;
 }
@@ -204,6 +229,8 @@ export async function GET(
   }
 
   let items = extractOverlayItems(raw);
+  let windows = extractOverlayWindowsDoors(raw, 'windows');
+  let doors = extractOverlayWindowsDoors(raw, 'doors');
 
   // If bboxes look like world coords (e.g. meters, values > 1 and < 10000), normalize to 0–1000 per axis for the viewer
   if (items.length > 0) {
@@ -218,6 +245,24 @@ export async function GET(
     const needsScale = (maxX > 1 || maxY > 1) && maxX < 10000 && maxY < 10000;
     if (needsScale) {
       for (const it of items) {
+        const [ymin, xmin, ymax, xmax] = it.bbox;
+        it.bbox = [
+          ((ymin - minY) / rangeY) * 1000,
+          ((xmin - minX) / rangeX) * 1000,
+          ((ymax - minY) / rangeY) * 1000,
+          ((xmax - minX) / rangeX) * 1000,
+        ];
+      }
+      for (const it of windows) {
+        const [ymin, xmin, ymax, xmax] = it.bbox;
+        it.bbox = [
+          ((ymin - minY) / rangeY) * 1000,
+          ((xmin - minX) / rangeX) * 1000,
+          ((ymax - minY) / rangeY) * 1000,
+          ((xmax - minX) / rangeX) * 1000,
+        ];
+      }
+      for (const it of doors) {
         const [ymin, xmin, ymax, xmax] = it.bbox;
         it.bbox = [
           ((ymin - minY) / rangeY) * 1000,
@@ -246,5 +291,5 @@ export async function GET(
     }
   }
 
-  return NextResponse.json({ imageUrl, items });
+  return NextResponse.json({ imageUrl, items, windows, doors });
 }

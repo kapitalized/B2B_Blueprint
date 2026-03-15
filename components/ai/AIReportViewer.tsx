@@ -65,13 +65,26 @@ function isAuditItem(x: unknown): x is AuditItem {
 
 function DetectionOverlaySection({ reportId }: { reportId: string }) {
   const [open, setOpen] = useState(false);
-  const [overlay, setOverlay] = useState<{ imageUrl: string | null; items: OverlayItem[] } | null>(null);
+  const [overlay, setOverlay] = useState<{
+    imageUrl: string | null;
+    items: OverlayItem[];
+    windows?: OverlayItem[];
+    doors?: OverlayItem[];
+  } | null>(null);
 
   useEffect(() => {
     if (!open || !reportId) return;
     fetch(`/api/reports/${reportId}/overlay`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => data && setOverlay({ imageUrl: data.imageUrl ?? null, items: data.items ?? [] }))
+      .then((data) =>
+        data &&
+        setOverlay({
+          imageUrl: data.imageUrl ?? null,
+          items: data.items ?? [],
+          windows: data.windows ?? [],
+          doors: data.doors ?? [],
+        })
+      )
       .catch(() => setOverlay({ imageUrl: null, items: [] }));
   }, [open, reportId]);
 
@@ -90,7 +103,12 @@ function DetectionOverlaySection({ reportId }: { reportId: string }) {
           {overlay === null ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : (
-            <PlanOverlayViewer imageUrl={overlay.imageUrl} items={overlay.items} />
+            <PlanOverlayViewer
+              imageUrl={overlay.imageUrl}
+              items={overlay.items}
+              windows={overlay.windows}
+              doors={overlay.doors}
+            />
           )}
         </div>
       )}
@@ -319,6 +337,35 @@ export default function AIReportViewer({ report, isLoading }: AIReportViewerProp
           <p className="font-semibold text-foreground">
             Total area: {Number(totalArea.toFixed(2)).toLocaleString()} m²
           </p>
+        </div>
+      )}
+
+      {/* Measurements table from data (length × width) when present */}
+      {items.some((i) => i.length_m != null || i.width_m != null) && (
+        <div className="border rounded-lg bg-muted/20 p-3 text-sm">
+          <p className="text-muted-foreground font-medium mb-2">Measurements</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b">
+                  <th className="py-1.5 pr-3 font-medium">Room</th>
+                  <th className="py-1.5 pr-3 font-medium">Area (m²)</th>
+                  <th className="py-1.5 pr-3 font-medium">Length (m)</th>
+                  <th className="py-1.5 pr-3 font-medium">Width (m)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((i, idx) => (
+                  <tr key={idx} className="border-b border-border/50 last:border-0">
+                    <td className="py-1.5 pr-3">{i.label}</td>
+                    <td className="py-1.5 pr-3">{typeof i.value === 'number' ? i.value : '—'}</td>
+                    <td className="py-1.5 pr-3">{i.length_m != null ? i.length_m : '—'}</td>
+                    <td className="py-1.5 pr-3">{i.width_m != null ? i.width_m : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

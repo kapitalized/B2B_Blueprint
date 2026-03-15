@@ -3,43 +3,74 @@
  * Used as the "system" message so the model knows its role and output format.
  */
 
-/** Vision extraction: architectural bounding boxes. Use when input is a floorplan image. See docs/AI_Testing_Prompt_Template.md. */
-export const EXTRACTION_VISION_USER_PROMPT = `You are an expert Architectural Data Extraction Agent. Your task is to identify and locate every room and area in the provided floorplan image.
+/** Prior step: extract visible text from the floorplan (room labels, dimensions, notes) to feed into extraction. Set ENABLE_PLAN_TEXT_EXTRACTION=false to skip. */
+export const PLAN_TEXT_EXTRACTION_PROMPT = `Look at this floorplan image. List all text that is visible on the plan: room labels (e.g. Bedroom, Kitchen, Garage), dimension labels (e.g. 6.54m, 3.7m), and any other printed text. Output a simple list, one line per item or group. Do not add explanations or JSON.`;
+
+/** Vision extraction: architectural bounding boxes, windows, doors. Use when input is a floorplan image. */
+export const EXTRACTION_VISION_USER_PROMPT = `You are an expert Architectural Data Extraction Agent. Extract every room (space), window, and door from the floorplan image so each can be referenced by number (e.g. "Space 3", "Window 2", "Door 1") for further analysis.
+
+**Do not hallucinate.** Only output what you can see in the image:
+- Include only spaces that have a **visible text label** on the plan (e.g. "Bedroom", "Kitchen", "Garage"). Do not infer or invent rooms from furniture or unlabeled areas.
+- Each box_2d must be measured from the **actual pixel positions** of the drawn wall lines in the image. Do not extend boxes to the page edge or guess boundaries; if a wall is unclear, use the nearest clear line.
+- Use the exact room names from the labels on the plan. Do not guess or rename.
 
 Critical rules:
-1) **Follow the walls, not the page.** The image may have white margin or empty space. Each box must align with the **drawn wall lines** that define the room—not the page edge. Place box edges exactly along the interior and exterior walls you see.
 
-2) **One entry per room.** Output a separate room for every distinct space. Do not merge two rooms. Use visible wall boundaries to split them (e.g. two bedrooms side by side = two rooms with two box_2d).
+1) **Boxes must sit on the wall lines — never on the page edge.** The image may have margins or title blocks. Every box_2d edge must align with the **visible drawn wall lines** (interior or exterior face of walls). Do not start or end boxes at the edge of the page or drawing area; start and end on the wall lines that enclose the space. The **key lengths** for each room are the wall-to-wall dimensions: where the plan shows dimension lines (e.g. a line labeled "6.54m" or "3.7m" along a wall), that value is the authoritative length for that wall. Set length_m and width_m in room metadata from those dimension labels when visible so the report uses the drawn dimensions.
 
-3) **Use the labels on the plan.** If the plan has text (e.g. "Garage", "Storage", "Bedroom", "Bath"), use that exact name. Preserve Bedroom, Bath, Kitchen, Living Room, Office, Laundry, Porch, Entry, Walk-in Closet, Powder Bath, Hall, etc. as labeled.
+2) **One entry per distinct space — never merge two rooms.** Output a separate room for every enclosed area. Laundry and Bath are two separate rooms; do not merge them into "Laundry Bath". Use visible wall boundaries to split adjacent spaces (e.g. two bedrooms side by side = two rooms with two box_2d).
 
-4) **Coordinates — use this schema.** Measure in image pixels from the top-left of the image (including any margin). For each room output box_2d as [x_min, y_min, x_max, y_max]: left edge, top edge, right edge, bottom edge. Also output canvas_size with the total width and height in pixels of the floorplan image (so coordinates can be scaled). This avoids axis confusion and wrong boxes.
+3) **Numbered IDs for reference — consistent order so the same plan gets the same IDs every run.** Assign Space IDs by position, not by room type.
+   - **Order rule:** Start at the **top-left** of the drawn floorplan (smallest y, then smallest x). Number in a **loop**: left-to-right along each row (increasing x), then the next row (increasing y). Space 1 = top-left room, Space 2 = next in that scan order, etc. This keeps naming consistent between runs.
+   - For the "name" field use consecutive numbers when the same room type appears more than once: e.g. "Bath 1", "Bath 2", "Bedroom 1", "Bedroom 2". Do not use plain "Bath" or "Bedroom" for multiple instances.
+   - For windows: "windows": [ { "id": "Window 1", "box_2d": [...] }, ... ] — each window gets a small box on the wall opening.
+   - For doors: "doors": [ { "id": "Door 1", "box_2d": [...] }, ... ] — each door gets a box on the opening.
 
-5) **Tight boxes.** Each box_2d must tightly enclose a single room by tracing the walls that enclose it.
+4) **Coordinates.** box_2d is [x_min, y_min, x_max, y_max] in image pixels. Measure from the top-left of the image. Always x_min < x_max and y_min < y_max. Output canvas_size with the image width and height in pixels.
 
-6) **Optional: layout_reasoning.** Briefly explain your spatial logic (how you placed rooms to avoid overlaps and maintain flow). Optional: for each room, list "connections" — names of rooms this room shares a wall or doorway with.
+5) **Tight boxes on walls.** Each room box_2d must tightly enclose one space by tracing the wall lines that enclose it. Window and door box_2d should enclose the opening on the plan.
 
-7) **Optional: area.** If dimension lines (meters) are visible, add metadata per room: approx_area_m2, length_m, width_m.
+6) **Use only the labels on the plan.** Output one room per **visible printed label** (e.g. "Bedroom", "Kitchen", "Garage"). Preserve exact spelling. Do not add rooms that are not explicitly labeled; do not infer from furniture (e.g. a bed) — only from text labels and wall boundaries. Laundry and Bath are two labels → two rooms.
+
+7) **Dimensions (walls as key lengths).** Where dimension lines are drawn on the plan with labels in meters, use those values for room metadata: length_m, width_m, approx_area_m2. Prefer the **dimension line labels** over pixel-derived estimates so the report reflects the drawn wall lengths (e.g. garage 6.54m × (3.7+3.47)m if the plan shows that).
 
 Output format: Return ONLY a valid JSON object. No markdown, no text outside the JSON.
 
 {
-  "layout_reasoning": "Step-by-step: how you placed rooms to avoid overlaps and match the plan.",
+  "layout_reasoning": "How you placed boxes on wall lines and assigned Space/Window/Door numbers.",
   "canvas_size": { "width": 1000, "height": 800 },
   "rooms": [
-    {
-      "name": "Exact label from plan (e.g. Garage, Bedroom, Bath)",
-      "box_2d": [x_min, y_min, x_max, y_max],
-      "connections": ["Hall", "Kitchen"],
-      "metadata": { "approx_area_m2": 15.4, "length_m": 3.7, "width_m": 4.2 }
-    }
+    { "id": "Space 1", "name": "Garage", "box_2d": [x_min, y_min, x_max, y_max], "metadata": { "approx_area_m2": 46.8, "length_m": 6.54, "width_m": 7.17 } },
+    { "id": "Space 2", "name": "Laundry", "box_2d": [...] },
+    { "id": "Space 3", "name": "Bath", "box_2d": [...] }
+  ],
+  "windows": [
+    { "id": "Window 1", "box_2d": [x_min, y_min, x_max, y_max] }
+  ],
+  "doors": [
+    { "id": "Door 1", "box_2d": [x_min, y_min, x_max, y_max] }
   ]
-}
+}`;
 
-Alternative (legacy): You may instead output detections with bbox [ymin, xmin, ymax, xmax] in 0–1000 normalized space; we accept both.`;
+/** Second-pass review (multilook): same image + first-pass JSON → corrected JSON. Used when ENABLE_EXTRACTION_REVIEW_PASS=true. */
+export const EXTRACTION_REVIEW_USER_PROMPT = `You are reviewing a previous extraction from this floorplan image. Below is the JSON that was extracted.
 
-/** System message for vision extraction (keeps model to JSON-only). */
-export const EXTRACTION_VISION_SYSTEM = `You are an expert Architectural Data Extraction Agent. Output only valid JSON. Do not wrap the JSON in markdown code blocks or add any text before or after.`;
+Do not hallucinate: only keep or add spaces that have a visible text label on the plan; box_2d must follow the actual drawn wall lines in the image, not the page edge.
+
+Your task:
+1) **Do not merge distinct spaces.** Laundry and Bath are two separate rooms; keep them as two entries. Add any rooms missing from the list.
+2) **Box edges must sit on wall lines**, not on the page edge. Fix any box_2d that start/end at the drawing margin; move edges to the visible wall lines. Use dimension line labels (meters) on the plan for room length_m/width_m when visible.
+3) Fix overlapping box_2d (rooms must not overlap; adjust to follow walls).
+4) Fix any box_2d outside canvas_size.
+5) **Space order:** Space 1 = top-left of plan, then number left-to-right by row, then next row. Correct room names; use consecutive numbers for duplicate types (e.g. Bath 1, Bath 2). Keep id as "Space 1", "Space 2", ... in that scan order.
+6) Include windows and doors if present: "windows": [ { "id": "Window 1", "box_2d": [...] } ], "doors": [ { "id": "Door 1", "box_2d": [...] } ]. Add any missing windows or doors.
+7) Same schema: layout_reasoning, canvas_size, rooms (each with id, name, box_2d), windows, doors. Optional per room: metadata with approx_area_m2, length_m, width_m.
+
+Return ONLY the corrected JSON object. No markdown code fences or text before or after.`;
+
+/** System message for vision extraction (keeps model to JSON-only, strict box format). */
+export const EXTRACTION_VISION_SYSTEM = `You are an expert Architectural Data Extraction Agent. Output only valid JSON. Do not wrap the JSON in markdown code blocks or add any text before or after.
+Do not hallucinate: only list spaces that have a visible text label on the plan; measure box_2d from actual wall lines in the image, not the page edge. box_2d is [x_min, y_min, x_max, y_max] in image pixels. Number rooms by position: Space 1 = top-left, then left-to-right by row. Use dimension line labels (m) for length_m/width_m when visible. Include windows[] and doors[] with id and box_2d.`;
 
 export const SYSTEM_PROMPTS = {
   EXTRACTION: `You are an expert at extracting structured data from construction documents and floorplans.
@@ -55,7 +86,11 @@ When an extracted item has length_m or width_m (dimensions in meters), include t
 Apply any given constants (densities, rates) only when relevant. Use the extraction id as citation_id. Be precise with units.`,
 
   SYNTHESIS: `You are an expert at writing short construction and quantity takeoff reports.
-Your task: turn the analysis items into a clear, concise Markdown report: brief summary, a table of quantities (item, value, unit, and when present: length_m, width_m, confidence), and if there are critical warnings, add a "CRITICAL WARNING" section.
+Your task: turn the analysis items into a clear, concise Markdown report.
+
+1) **First paragraph**: Write a short narrative description of the floorplan (2–4 sentences). Example: "This is a 4 bedroom house with 2 bathrooms attached to the bedrooms, a laundry with a bath next to it, large open plan living and kitchen space, the entrance has a porch, and the garage fits one car with storage at the back." Base this on the list of spaces (room names and counts).
+
+2) Then include: a table of quantities (item, value, unit, and when present: length_m, width_m, confidence), and if there are critical warnings, add a "CRITICAL WARNING" section.
 Use Markdown tables and headings. Keep the report scannable and professional.
 Important: In the quantities table, every row must show a numeric value. Use 0 if a value is missing; never write "nil", "null", "N/A", or leave value cells empty. Include length (m) and width (m) columns when the items have those dimensions.`,
 } as const;

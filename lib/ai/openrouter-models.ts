@@ -51,12 +51,11 @@ export function isVisionCapableModel(modelId: string): boolean {
 }
 
 /**
- * For extraction with an image: use the configured model if it supports vision,
- * otherwise use a default vision model to avoid OpenRouter 404 "No endpoints found that support image input".
+ * For extraction with an image: always use Gemini 2.0 Flash for reliability (B1).
+ * Admin extraction model is ignored for vision so coordinate quality is consistent.
  */
-export function getExtractionModelForVision(configuredModel: string): string {
-  if (!configuredModel?.trim()) return DEFAULT_VISION_EXTRACTION_MODEL;
-  return isVisionCapableModel(configuredModel.trim()) ? configuredModel.trim() : DEFAULT_VISION_EXTRACTION_MODEL;
+export function getExtractionModelForVision(_configuredModel: string): string {
+  return DEFAULT_VISION_EXTRACTION_MODEL;
 }
 
 /** Ensure current value appears in options (e.g. if it was custom or model list changed). */

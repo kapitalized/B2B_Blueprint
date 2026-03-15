@@ -1,0 +1,54 @@
+{
+  "ranAt": "2026-03-15T02:42:03.663Z",
+  "projectId": "1891b50f-7052-4c1b-8736-5d9dbe568d84",
+  "fileId": "e9239ff7-d4c1-4068-9aa5-da2ca4fda6dc",
+  "reportId": "eba31e9d-4da7-415d-b531-c11ed9f15cbb",
+  "reportShortId": "3ty9ad",
+  "extractionProvider": "huggingface",
+  "extractionProviderError": "Hugging Face Inference API 410: {\"error\":\"https://api-inference.huggingface.co is no longer supported. Please use https://router.huggingface.co instead.\"}",
+  "extractionLabels": [
+    "Sample item"
+  ],
+  "extractionSpaceIds": [
+    "1"
+  ],
+  "extractionWindows": [],
+  "extractionDoors": [],
+  "overlayItemsCount": 0,
+  "reportPayloadLabels": [
+    "Sample item"
+  ],
+  "reportPayloadValues": [
+    0
+  ],
+  "reportPayloadLengths": [
+    null
+  ],
+  "reportPayloadWidths": [
+    null
+  ],
+  "extractionResponsePreview": "",
+  "extractionResponseLength": 0,
+  "stepTrace": [
+    {
+      "step": "EXTRACTION",
+      "stepLabel": "Extraction (Hugging Face failed)",
+      "model": "facebook/detr-resnet-50",
+      "error": "Hugging Face Inference API 410: {\"error\":\"https://api-inference.huggingface.co is no longer supported. Please use https://router.huggingface.co instead.\"}"
+    },
+    {
+      "step": "EXTRACTION",
+      "stepLabel": "Extraction (bounding boxes)",
+      "model": "google/gemini-2.0-flash-001",
+      "error": "Floorplan extraction via Hugging Face failed: Hugging Face Inference API 410: {\"error\":\"https://api-inference.huggingface.co is no longer supported. Please use https://router.huggingface.co instead.\"}"
+    },
+    {
+      "step": "SYNTHESIS",
+      "model": "openai/gpt-4o-mini"
+    }
+  ],
+  "errors": [
+    "Overlay: no boxes drawn (items have no coordinate_polygons or overlay fallback failed)",
+    "Report: all values are 0"
+  ]
+}

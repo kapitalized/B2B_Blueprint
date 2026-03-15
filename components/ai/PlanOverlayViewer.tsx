@@ -9,16 +9,28 @@
 import { useRef, useEffect, useState } from 'react';
 
 const COLORS = ['#ef4444', '#22c55e', '#3b82f6', '#eab308', '#a855f7'];
+const WINDOW_COLOR = '#0ea5e9';
+const DOOR_COLOR = '#f97316';
 
 function scaleCoord(val: number, dim: number): number {
   return (val / 1000) * dim;
+}
+
+/** Format label to match report: "Space N: Room name" when id looks like Space N, else just label. */
+function formatBoxLabel(item: { id?: string; label?: string }): string {
+  const id = (item.id ?? '').trim();
+  const label = (item.label ?? '').trim();
+  if (/^Space\s*\d+$/i.test(id) && label) return `${id}: ${label}`;
+  if (label) return label;
+  return id || '—';
 }
 
 function drawBoxesOnContext(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
-  items: { bbox: number[]; label?: string }[]
+  items: { id?: string; bbox: number[]; label?: string }[],
+  strokeColor?: string
 ) {
   items.forEach((item, i) => {
     const bbox = item.bbox;
@@ -27,14 +39,15 @@ function drawBoxesOnContext(
     const y = scaleCoord(bbox[0], h);
     const width = scaleCoord(bbox[3] - bbox[1], w);
     const height = scaleCoord(bbox[2] - bbox[0], h);
-    ctx.strokeStyle = COLORS[i % COLORS.length];
+    ctx.strokeStyle = strokeColor ?? COLORS[i % COLORS.length];
     ctx.lineWidth = Math.max(2, Math.min(w, h) / 300);
     ctx.strokeRect(x, y, width, height);
-    if (item.label) {
+    const text = formatBoxLabel(item);
+    if (text && text !== '—') {
       const fontSize = Math.max(10, Math.min(w, h) / 50);
       ctx.font = `${fontSize}px sans-serif`;
       ctx.fillStyle = ctx.strokeStyle;
-      ctx.fillText(item.label, x, Math.max(fontSize + 2, y - 2));
+      ctx.fillText(text, x, Math.max(fontSize + 2, y - 2));
     }
   });
 }
@@ -49,10 +62,12 @@ export interface OverlayItem {
 interface PlanOverlayViewerProps {
   imageUrl: string | null;
   items: OverlayItem[];
+  windows?: OverlayItem[];
+  doors?: OverlayItem[];
   className?: string;
 }
 
-export default function PlanOverlayViewer({ imageUrl, items, className = '' }: PlanOverlayViewerProps) {
+export default function PlanOverlayViewer({ imageUrl, items, windows = [], doors = [], className = '' }: PlanOverlayViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -60,10 +75,12 @@ export default function PlanOverlayViewer({ imageUrl, items, className = '' }: P
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
+  const hasAny = items.length > 0 || windows.length > 0 || doors.length > 0;
+
   useEffect(() => {
     const img = imgRef.current;
     const canvas = canvasRef.current;
-    if (!img || !canvas || !imgSize || items.length === 0) return;
+    if (!img || !canvas || !imgSize || !hasAny) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -74,7 +91,9 @@ export default function PlanOverlayViewer({ imageUrl, items, className = '' }: P
     ctx.clearRect(0, 0, w, h);
     ctx.lineWidth = 2;
     drawBoxesOnContext(ctx, w, h, items);
-  }, [imgSize, items]);
+    drawBoxesOnContext(ctx, w, h, windows, WINDOW_COLOR);
+    drawBoxesOnContext(ctx, w, h, doors, DOOR_COLOR);
+  }, [imgSize, items, windows, doors, hasAny]);
 
   const onImgLoad = () => {
     const img = imgRef.current;
@@ -85,7 +104,7 @@ export default function PlanOverlayViewer({ imageUrl, items, className = '' }: P
 
   async function handleDownload() {
     const img = imgRef.current;
-    if (!img || !imageUrl || items.length === 0) return;
+    if (!img || !imageUrl || !hasAny) return;
     setDownloadError(null);
     setDownloading(true);
     try {
@@ -99,6 +118,8 @@ export default function PlanOverlayViewer({ imageUrl, items, className = '' }: P
       if (!ctx) throw new Error('Canvas not supported');
       ctx.drawImage(img, 0, 0);
       drawBoxesOnContext(ctx, w, h, items);
+      drawBoxesOnContext(ctx, w, h, windows, WINDOW_COLOR);
+      drawBoxesOnContext(ctx, w, h, doors, DOOR_COLOR);
       canvas.toBlob(
         (blob) => {
           if (!blob) {
@@ -128,7 +149,7 @@ export default function PlanOverlayViewer({ imageUrl, items, className = '' }: P
     );
   }
 
-  if (items.length === 0) {
+  if (!hasAny) {
     return (
       <div className={className}>
         <img
@@ -163,7 +184,16 @@ export default function PlanOverlayViewer({ imageUrl, items, className = '' }: P
         />
       )}
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <p className="text-xs text-muted-foreground">{items.length} detection(s)</p>
+        <p className="text-xs text-muted-foreground">
+          {items.length} space(s){windows.length ? ` · ${windows.length} window(s)` : ''}{doors.length ? ` · ${doors.length} door(s)` : ''}
+        </p>
+        {(items.length > 0 || windows.length > 0 || doors.length > 0) && (
+          <span className="text-xs text-muted-foreground">
+            {items.length > 0 && `Spaces: ${items.map((i) => i.id ?? i.label).join(', ')}. `}
+            {windows.length > 0 && `Windows: ${windows.map((w) => w.id ?? w.label).join(', ')}. `}
+            {doors.length > 0 && `Doors: ${doors.map((d) => d.id ?? d.label).join(', ')}.`}
+          </span>
+        )}
         <button
           type="button"
           onClick={handleDownload}
