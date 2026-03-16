@@ -47,7 +47,7 @@ export async function listInvoicesForCustomer(
     expand: ['data.lines.data.price'],
   });
 
-  return res.data.map((inv) => mapInvoice(inv, priceIdFromInvoice(inv)));
+  return res.data.map((inv) => mapInvoice(inv as Parameters<typeof mapInvoice>[0], priceIdFromInvoice(inv)));
 }
 
 export interface AdminInvoiceRow extends BillingInvoice {
@@ -111,7 +111,7 @@ export async function listAllPaidInvoices(limit = 100): Promise<AdminInvoiceRow[
         : null;
     const customerId = typeof inv.customer === 'string' ? inv.customer : inv.customer?.id ?? null;
     return {
-      ...mapInvoice(inv, priceIdFromInvoice(inv)),
+      ...mapInvoice(inv as Parameters<typeof mapInvoice>[0], priceIdFromInvoice(inv)),
       customerEmail,
       customerId,
     };

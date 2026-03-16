@@ -228,6 +228,7 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
               step: 'EXTRACTION',
               stepLabel: 'Plan text extraction',
               model: modelForVision,
+              promptPreview: PLAN_TEXT_AND_COORDINATES_PROMPT.slice(0, 1500),
               responsePreview: planText.slice(0, 500),
             });
             const textSummary = planTextItems?.length
@@ -1059,7 +1060,7 @@ function extractJson(text: string): string {
 }
 
 /** Get [ymin, xmin, ymax, xmax] from an extraction item/window/door. */
-function getBboxFromExtractionItem(o: { coordinate_polygons?: unknown; raw?: { bbox?: unknown } }): number[] | null {
+function getBboxFromExtractionItem(o: { coordinate_polygons?: unknown; raw?: unknown }): number[] | null {
   const raw = o.coordinate_polygons ?? (o.raw as { bbox?: unknown } | undefined)?.bbox;
   if (!Array.isArray(raw) || raw.length < 4) return null;
   const nums = raw.map((n) => (typeof n === 'number' ? n : Number(n)));

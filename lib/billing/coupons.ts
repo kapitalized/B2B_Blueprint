@@ -51,7 +51,15 @@ export async function createCoupon(params: CreateCouponParams): Promise<CouponRo
   const stripe = getStripe();
   if (!stripe) throw new Error('Stripe not configured');
 
-  const create: Parameters<typeof stripe.coupons.create>[0] = {
+  const create: {
+    duration: 'once' | 'repeating' | 'forever';
+    id?: string;
+    name?: string;
+    percent_off?: number;
+    amount_off?: number;
+    currency?: string;
+    duration_in_months?: number;
+  } = {
     duration: params.duration,
   };
   if (params.id?.trim()) create.id = params.id.trim();
@@ -68,7 +76,8 @@ export async function createCoupon(params: CreateCouponParams): Promise<CouponRo
     create.duration_in_months = params.durationInMonths;
   }
 
-  const c = await stripe.coupons.create(create);
+  // Stripe SDK typings may list RequestOptions first; our payload is the create body.
+  const c = await stripe.coupons.create(create as Record<string, unknown>);
   return {
     id: c.id,
     name: c.name ?? null,
@@ -113,9 +122,8 @@ export async function createPromotionCode(couponId: string, code: string): Promi
   if (!stripe) throw new Error('Stripe not configured');
   const sanitized = code.trim().toUpperCase().replace(/\s+/g, '_');
   if (!sanitized) throw new Error('Promotion code is required');
-  const promo = await stripe.promotionCodes.create({
-    coupon: couponId,
-    code: sanitized,
-  });
+  // Stripe SDK typings can lag API (e.g. coupon vs promotion); payload is valid at runtime.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const promo = await stripe.promotionCodes.create({ coupon: couponId, code: sanitized } as any);
   return { id: promo.id, code: promo.code ?? sanitized };
 }

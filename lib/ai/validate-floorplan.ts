@@ -6,6 +6,8 @@
 
 export interface RoomForValidation {
   name?: string;
+  /** Alias for name (e.g. from extraction items). */
+  label?: string;
   box_2d?: number[];
   metadata?: { approx_area_m2?: number };
   area?: number;
