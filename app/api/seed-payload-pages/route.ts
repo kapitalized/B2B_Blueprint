@@ -1,5 +1,5 @@
 /**
- * One-time seed: create default Payload pages (about, features, pricing, contact).
+ * One-time seed: create default Payload pages (about, features, pricing, contact, privacy, terms).
  * POST only. Requires ?key=INTERNAL_SERVICE_KEY (or same value in header x-seed-key).
  *
  * With dev server running: curl -X POST "http://localhost:3000/api/seed-payload-pages?key=YOUR_INTERNAL_SERVICE_KEY"

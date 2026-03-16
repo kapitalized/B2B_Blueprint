@@ -1,54 +1,575 @@
 {
-  "ranAt": "2026-03-15T02:42:03.663Z",
-  "projectId": "1891b50f-7052-4c1b-8736-5d9dbe568d84",
-  "fileId": "e9239ff7-d4c1-4068-9aa5-da2ca4fda6dc",
-  "reportId": "eba31e9d-4da7-415d-b531-c11ed9f15cbb",
-  "reportShortId": "3ty9ad",
-  "extractionProvider": "huggingface",
-  "extractionProviderError": "Hugging Face Inference API 410: {\"error\":\"https://api-inference.huggingface.co is no longer supported. Please use https://router.huggingface.co instead.\"}",
+  "ranAt": "2026-03-15T11:13:14.296Z",
+  "projectId": "6fe1590b-0b94-43b0-b6a2-5ef333885d7c",
+  "fileId": "8dbc4e58-f775-4093-acdc-d3e54fee964d",
+  "reportId": "36ee3fc0-549f-4ff9-b11b-5cf7267f8dfc",
+  "reportShortId": "q7n7sm",
+  "extractionProvider": "openrouter",
+  "extractionProviderError": null,
+  "planTextExtractionPrompt": "Look at this floorplan image. For every visible text label (room names like Bedroom, Kitchen, Garage; dimension labels like 6.54m, 3.7m; and any other printed text), give the exact text and its approximate bounding box in image pixels.\n\nRules:\n- box is [x_min, y_min, x_max, y_max] in pixels from the top-left of the image. x_min < x_max, y_min < y_max.\n- One entry per distinct label. For dimensions you can use the label value (e.g. \"6.54m\") and a tight box around that text.\n- Room labels are the main goal when present. If the plan has **no or almost no text** (e.g. it is a colour-block or coloured floorplan with only coloured regions), return an empty list: {\"textItems\":[]}. Do not invent labels.\n\nReturn ONLY a valid JSON object with no markdown, no code fence, no text before or after:\n{\"textItems\":[{\"label\":\"Garage\",\"box\":[100,200,180,220]},{\"label\":\"6.54m\",\"box\":[120,400,160,415]},...]}\nFor colour-only plans with no text: {\"textItems\":[]}",
+  "planTextExtraction": "```json\n{\"textItems\":[{\"label\":\"TOILET\",\"box\":[288,278,320,291]},{\"label\":\"GYM\",\"box\":[368,340,381,360]},{\"label\":\"CAFE\",\"box\":[466,340,479,359]},{\"label\":\"KITCHEN\",\"box\":[544,333,557,366]},{\"label\":\"TOILET\",\"box\":[544,415,557,435]},{\"label\":\"POOL DECK\",\"box\":[412,487,425,525]},{\"label\":\"POOL DECK\",\"box\":[544,545,557,583]},{\"label\":\"TOILET\",\"box\":[600,317,613,337]},{\"label\":\"SHOP 3\",\"box\":[632,333,645,360]},{\"label\":\"SHOP 2\",\"box\":[632,415,645,442]},{\"label\":\"TOILET\",\"box\":[600,497,613,517]},{\"label\":\"SHOP 1\",\"box\":[632,597,645,624]},{\"label\":\"TOILET\",\"box\":[600,579,613,599]},{\"label\":\"1st FLOOR PLAN\",\"box\":[878,108,897,205]},{\"label\":\"SCALE 1:120\",\"box\":[908,108,926,179]},{\"label\":\"-284.0-\",\"box\":[140,271,153,297]},{\"label\":\"400.0\",\"box\":[217,297,230,317]},{\"label\":\"-200.0-\",\"box\":[116,374,129,399]},{\"label\":\"-200.0\",\"box\":[116,448,129,468]},{\"label\":\"-2605.0-\",\"box\":[116,518,129,548]},{\"label\":\"-1021.0\",\"box\":[116,597,129,622]},{\"label\":\"450.0\",\"box\":[116,697,129,717]},{\"label\":\"50.0\",\"box\":[116,766,129,780]},{\"label\":\"561.3\",\"box\":[217,215,230,235]},{\"label\":\"400.0\",\"box\":[351,215,364,235]},{\"label\":\"2526.3\",\"box\":[466,215,479,241]},{\"label\":\"200.0\",\"box\":[544,215,557,235]},{\"label\":\"400.0\",\"box\":[632,215,645,235]},{\"label\":\"350.0\",\"box\":[735,215,748,235]},{\"label\":\"215.0\",\"box\":[819,215,832,235]},{\"label\":\"322.0\",\"box\":[351,771,364,791]},{\"label\":\"200.0\",\"box\":[544,771,557,791]},{\"label\":\"400.0\",\"box\":[632,771,645,791]},{\"label\":\"1487.0\",\"box\":[654,771,667,797]},{\"label\":\"350.0\",\"box\":[735,771,748,791]},{\"label\":\"215.0\",\"box\":[819,771,832,791]},{\"label\":\"-120.0\",\"box\":[869,271,882,297]},{\"label\":\"400.0\",\"box\":[869,347,882,367]},{\"label\":\"400.0-\",\"box\":[869,423,882,443]},{\"label\":\"-300.0\",\"box\":[869,493,882,518]},{\"label\":\"400.0\",\"box\":[869,569,882,589]},{\"label\":\"400.0\",\"box\":[869,645,882,665]},{\"label\":\"428.5-\",\"box\":[869,715,882,741]},{\"label\":\"2448.5\",\"box\":[890,499,903,529]},{\"label\":\"TOILET\",\"box\":[370,289,383,309]},{\"label\":\"TOILET\",\"box\":[320,289,333,309]}\n]}\n```",
+  "planTextItems": [
+    {
+      "label": "TOILET",
+      "box": [
+        288,
+        278,
+        320,
+        291
+      ]
+    },
+    {
+      "label": "GYM",
+      "box": [
+        368,
+        340,
+        381,
+        360
+      ]
+    },
+    {
+      "label": "CAFE",
+      "box": [
+        466,
+        340,
+        479,
+        359
+      ]
+    },
+    {
+      "label": "KITCHEN",
+      "box": [
+        544,
+        333,
+        557,
+        366
+      ]
+    },
+    {
+      "label": "TOILET",
+      "box": [
+        544,
+        415,
+        557,
+        435
+      ]
+    },
+    {
+      "label": "POOL DECK",
+      "box": [
+        412,
+        487,
+        425,
+        525
+      ]
+    },
+    {
+      "label": "POOL DECK",
+      "box": [
+        544,
+        545,
+        557,
+        583
+      ]
+    },
+    {
+      "label": "TOILET",
+      "box": [
+        600,
+        317,
+        613,
+        337
+      ]
+    },
+    {
+      "label": "SHOP 3",
+      "box": [
+        632,
+        333,
+        645,
+        360
+      ]
+    },
+    {
+      "label": "SHOP 2",
+      "box": [
+        632,
+        415,
+        645,
+        442
+      ]
+    },
+    {
+      "label": "TOILET",
+      "box": [
+        600,
+        497,
+        613,
+        517
+      ]
+    },
+    {
+      "label": "SHOP 1",
+      "box": [
+        632,
+        597,
+        645,
+        624
+      ]
+    },
+    {
+      "label": "TOILET",
+      "box": [
+        600,
+        579,
+        613,
+        599
+      ]
+    },
+    {
+      "label": "1st FLOOR PLAN",
+      "box": [
+        878,
+        108,
+        897,
+        205
+      ]
+    },
+    {
+      "label": "SCALE 1:120",
+      "box": [
+        908,
+        108,
+        926,
+        179
+      ]
+    },
+    {
+      "label": "-284.0-",
+      "box": [
+        140,
+        271,
+        153,
+        297
+      ]
+    },
+    {
+      "label": "400.0",
+      "box": [
+        217,
+        297,
+        230,
+        317
+      ]
+    },
+    {
+      "label": "-200.0-",
+      "box": [
+        116,
+        374,
+        129,
+        399
+      ]
+    },
+    {
+      "label": "-200.0",
+      "box": [
+        116,
+        448,
+        129,
+        468
+      ]
+    },
+    {
+      "label": "-2605.0-",
+      "box": [
+        116,
+        518,
+        129,
+        548
+      ]
+    },
+    {
+      "label": "-1021.0",
+      "box": [
+        116,
+        597,
+        129,
+        622
+      ]
+    },
+    {
+      "label": "450.0",
+      "box": [
+        116,
+        697,
+        129,
+        717
+      ]
+    },
+    {
+      "label": "50.0",
+      "box": [
+        116,
+        766,
+        129,
+        780
+      ]
+    },
+    {
+      "label": "561.3",
+      "box": [
+        217,
+        215,
+        230,
+        235
+      ]
+    },
+    {
+      "label": "400.0",
+      "box": [
+        351,
+        215,
+        364,
+        235
+      ]
+    },
+    {
+      "label": "2526.3",
+      "box": [
+        466,
+        215,
+        479,
+        241
+      ]
+    },
+    {
+      "label": "200.0",
+      "box": [
+        544,
+        215,
+        557,
+        235
+      ]
+    },
+    {
+      "label": "400.0",
+      "box": [
+        632,
+        215,
+        645,
+        235
+      ]
+    },
+    {
+      "label": "350.0",
+      "box": [
+        735,
+        215,
+        748,
+        235
+      ]
+    },
+    {
+      "label": "215.0",
+      "box": [
+        819,
+        215,
+        832,
+        235
+      ]
+    },
+    {
+      "label": "322.0",
+      "box": [
+        351,
+        771,
+        364,
+        791
+      ]
+    },
+    {
+      "label": "200.0",
+      "box": [
+        544,
+        771,
+        557,
+        791
+      ]
+    },
+    {
+      "label": "400.0",
+      "box": [
+        632,
+        771,
+        645,
+        791
+      ]
+    },
+    {
+      "label": "1487.0",
+      "box": [
+        654,
+        771,
+        667,
+        797
+      ]
+    },
+    {
+      "label": "350.0",
+      "box": [
+        735,
+        771,
+        748,
+        791
+      ]
+    },
+    {
+      "label": "215.0",
+      "box": [
+        819,
+        771,
+        832,
+        791
+      ]
+    },
+    {
+      "label": "-120.0",
+      "box": [
+        869,
+        271,
+        882,
+        297
+      ]
+    },
+    {
+      "label": "400.0",
+      "box": [
+        869,
+        347,
+        882,
+        367
+      ]
+    },
+    {
+      "label": "400.0-",
+      "box": [
+        869,
+        423,
+        882,
+        443
+      ]
+    },
+    {
+      "label": "-300.0",
+      "box": [
+        869,
+        493,
+        882,
+        518
+      ]
+    },
+    {
+      "label": "400.0",
+      "box": [
+        869,
+        569,
+        882,
+        589
+      ]
+    },
+    {
+      "label": "400.0",
+      "box": [
+        869,
+        645,
+        882,
+        665
+      ]
+    },
+    {
+      "label": "428.5-",
+      "box": [
+        869,
+        715,
+        882,
+        741
+      ]
+    },
+    {
+      "label": "2448.5",
+      "box": [
+        890,
+        499,
+        903,
+        529
+      ]
+    },
+    {
+      "label": "TOILET",
+      "box": [
+        370,
+        289,
+        383,
+        309
+      ]
+    },
+    {
+      "label": "TOILET",
+      "box": [
+        320,
+        289,
+        333,
+        309
+      ]
+    }
+  ],
+  "planLooksCount": 3,
+  "temperatures": {
+    "planTextExtraction": 0,
+    "extraction": 0.2,
+    "extractionRetry": 0.2,
+    "extractionReviewPass": 0.2,
+    "analysis": 0.3,
+    "synthesis": "default"
+  },
   "extractionLabels": [
-    "Sample item"
+    "TOILET",
+    "GYM",
+    "2526.3",
+    "TOILET",
+    "561.3",
+    "TOILET",
+    "TOILET",
+    "-200.0-",
+    "SHOP 3",
+    "GYM",
+    "KITCHEN",
+    "TOILET",
+    "SHOP 2",
+    "SHOP 2",
+    "TOILET",
+    "TOILET"
   ],
   "extractionSpaceIds": [
-    "1"
+    "Space 1",
+    "Space 2",
+    "Space 3",
+    "Space 4",
+    "Space 5",
+    "Space 6",
+    "Space 7",
+    "Space 8",
+    "Space 9",
+    "Space 10",
+    "Space 11",
+    "Space 12",
+    "Space 13",
+    "Space 14",
+    "Space 15",
+    "Space 16"
   ],
   "extractionWindows": [],
   "extractionDoors": [],
-  "overlayItemsCount": 0,
+  "overlayItemsCount": 16,
   "reportPayloadLabels": [
-    "Sample item"
+    "TOILET",
+    "GYM",
+    "2526.3",
+    "TOILET",
+    "561.3",
+    "TOILET",
+    "TOILET",
+    "-200.0-",
+    "SHOP 3",
+    "GYM",
+    "KITCHEN",
+    "TOILET",
+    "SHOP 2",
+    "SHOP 2",
+    "TOILET",
+    "TOILET"
   ],
   "reportPayloadValues": [
-    0
+    1.52,
+    5.72,
+    12.15,
+    1.34,
+    2.86,
+    2.86,
+    3.4,
+    1.34,
+    5.72,
+    1.34,
+    1.34,
+    1.34,
+    1.99,
+    1.99,
+    1.34,
+    1.34
   ],
   "reportPayloadLengths": [
-    null
+    1.33,
+    2.8,
+    3.39,
+    1.33,
+    2.8,
+    2.8,
+    3.39,
+    1.33,
+    2.8,
+    1.33,
+    1.33,
+    1.33,
+    2.8,
+    2.8,
+    1.33,
+    1.33
   ],
   "reportPayloadWidths": [
-    null
+    1.14,
+    2.04,
+    3.58,
+    1,
+    1.02,
+    1.02,
+    1,
+    1,
+    2.04,
+    1,
+    1,
+    1,
+    0.71,
+    0.71,
+    1,
+    1
   ],
-  "extractionResponsePreview": "",
-  "extractionResponseLength": 0,
+  "extractionResponsePreview": "```json\n{\n  \"layout_reasoning\": \"The floorplan was processed by identifying enclosed regions bounded by walls. Each region was assigned a unique Space ID based on its position from top-left to bottom-right. Room names were extracted from the text labels on the plan. Window and door locations were identified and marked with corresponding IDs.\",\n  \"canvas_size\": {\n    \"width\": 842,\n    \"height\": 595\n  },\n  \"rooms\": [\n    {\n      \"id\": \"Space 1\",\n      \"name\": \"TOILET\",\n      \"box_2d\": [\n        64,\n        63,\n        141,\n        129\n      ]\n    },\n    {\n      \"id\": \"Space 2\",\n      \"name\": \"GYM\",\n      \"box_2d\": [\n        151,\n        63,\n        313,\n        181\n      ]\n    },\n    {\n      \"id\": \"Space 3\",\n      \"name\": \"POOL DECK\",\n      \"box_2d\": [\n        322,\n        63,\n        518,\n        270\n      ]\n    },\n    {\n      \"id\": \"Space 4\",\n      \"name\": \"TOILET\",\n      \"box_2d\": [\n        64,\n        131,\n        141,\n        189\n      ]\n    },\n    {\n      \"id\": \"Space 5\",\n      \"name\": \"CAFE\",\n      \"box_2d\": [\n        151,\n        191,\n        313,\n        250\n      ]\n    },\n    {\n      \"id\": \"Space 6\",\n      \"name\": \"POOL DECK\",\n      \"box_2d\": [\n        322,\n        275,\n        518,\n        333\n      ]\n    },\n    {\n      \"id\": \"Space 7\",\n      \"name\": \"KITCHEN\",\n      \"box_2d\": [\n        151,\n        260,\n        313,\n        319\n      ]\n    },\n    {\n      \"id\": \"Space 8\",\n      \"name\": \"TOILET\",\n      \"box_2d\": [\n        322,\n        338,\n        399,\n        396\n      ]\n    },\n    {\n      \"id\": \"Space 9\",\n      \"name\": \"TOILET\",\n      \"box_2d\": [\n        526,\n        338,\n        603,\n        396\n      ]\n    },\n    {\n      \"id\": \"Space 10\",\n      \"name\": \"TOILET\",\n      \"box_2d\": [\n        64,\n        329,\n        141,\n        387\n      ]\n    },\n    {\n      \"id\": \"Space 11\",\n      \"name\": \"SHOP 3\",\n      \"box_2d\": [\n        151,\n        329,\n        313,\n        447\n      ]\n    },\n    {\n      \"id\": \"Space 12\",\n      \"name\": \"SHOP 2\",\n      \"box_2d\": [\n    ",
+  "extractionResponseLength": 2653,
   "stepTrace": [
     {
       "step": "EXTRACTION",
-      "stepLabel": "Extraction (Hugging Face failed)",
-      "model": "facebook/detr-resnet-50",
-      "error": "Hugging Face Inference API 410: {\"error\":\"https://api-inference.huggingface.co is no longer supported. Please use https://router.huggingface.co instead.\"}"
+      "stepLabel": "Plan text extraction",
+      "model": "google/gemini-2.0-flash-001",
+      "responsePreview": "```json\n{\"textItems\":[{\"label\":\"TOILET\",\"box\":[288,278,320,291]},{\"label\":\"GYM\",\"box\":[368,340,381,360]},{\"label\":\"CAFE\",\"box\":[466,340,479,359]},{\"label\":\"KITCHEN\",\"box\":[544,333,557,366]},{\"label\":\"TOILET\",\"box\":[544,415,557,435]},{\"label\":\"POOL DECK\",\"box\":[412,487,425,525]},{\"label\":\"POOL DECK\",\"box\":[544,545,557,583]},{\"label\":\"TOILET\",\"box\":[600,317,613,337]},{\"label\":\"SHOP 3\",\"box\":[632,333,645,360]},{\"label\":\"SHOP 2\",\"box\":[632,415,645,442]},{\"label\":\"TOILET\",\"box\":[600,497,613,517]},{\"l"
+    },
+    {
+      "step": "EXTRACTION",
+      "stepLabel": "Extraction (review pass)",
+      "model": "google/gemini-2.0-flash-001",
+      "responsePreview": "```json\n{\n  \"layout_reasoning\": \"The floorplan was processed by identifying enclosed regions bounded by walls. Each region was assigned a unique Space ID based on its position from top-left to bottom-right. Room names were extracted from the text labels on the plan. Window and door locations were identified and marked with corresponding IDs.\",\n  \"canvas_size\": {\n    \"width\": 842,\n    \"height\": 595\n  },\n  \"rooms\": [\n    {\n      \"id\": \"Space 1\",\n      \"name\": \"TOILET\",\n      \"box_2d\": [\n        64,\n        63,\n        141,\n        129\n      ]\n    },\n    {\n      \"id\": \"Space 2\",\n      \"name\": \"GYM\",\n      \"box_2d\": [\n        151,\n        63,\n        313,\n        181\n      ]\n    },\n    {\n      \"id\": \"Space 3\",\n      \"name\": \"POOL DECK\",\n      \"box_2d\": [\n        322,\n        63,\n        518,\n "
     },
     {
       "step": "EXTRACTION",
       "stepLabel": "Extraction (bounding boxes)",
       "model": "google/gemini-2.0-flash-001",
-      "error": "Floorplan extraction via Hugging Face failed: Hugging Face Inference API 410: {\"error\":\"https://api-inference.huggingface.co is no longer supported. Please use https://router.huggingface.co instead.\"}"
+      "responsePreview": "```json\n{\n  \"layout_reasoning\": \"The floorplan was processed by identifying enclosed regions bounded by walls. Each region was assigned a unique Space ID based on its position from top-left to bottom-right. Room names were extracted from the text labels on the plan. Window and door locations were identified and marked with corresponding IDs.\",\n  \"canvas_size\": {\n    \"width\": 842,\n    \"height\": 595\n  },\n  \"rooms\": [\n    {\n      \"id\": \"Space 1\",\n      \"name\": \"TOILET\",\n      \"box_2d\": [\n        64,\n        63,\n        141,\n        129\n      ]\n    },\n    {\n      \"id\": \"Space 2\",\n      \"name\": \"GYM\",\n      \"box_2d\": [\n        151,\n        63,\n        313,\n        181\n      ]\n    },\n    {\n      \"id\": \"Space 3\",\n      \"name\": \"POOL DECK\",\n      \"box_2d\": [\n        322,\n        63,\n        518,\n        270\n      ]\n    },\n    {\n      \"id\": \"Space 4\",\n      \"name\": \"TOILET\",\n      \"box_2d\": [\n        64,\n        131,\n        141,\n        189\n      ]\n    },\n    {\n      \"id\": \"Space 5\",\n      \"name\": \"CAFE\",\n      \"box_2d\": [\n        151,\n        191,\n        313,\n        250\n      ]\n    },\n    {\n      \"id\": \"Space 6\",\n      \"name\": \"POOL DECK\",\n      \"box_2d\": [\n        322,\n        275,\n   "
     },
     {
       "step": "SYNTHESIS",
-      "model": "openai/gpt-4o-mini"
+      "model": "openai/gpt-4o-mini",
+      "responsePreview": "# Quantity Takeoff Report\n\nThis report includes a summary of the quantities associated with various spaces in the building. Key areas include multiple toilets, gyms, and designated shop spaces, providing functionality for both personal and commercial use.\n\n## Quantities Table\n\n| Label      | Value | Unit | Length (m) | Width (m) |\n|------------|-------|------|-------------|------------|\n| TOILET     | 1.52  | m²   | 1.33        | 1.14       |\n| GYM        | 5.72  | m²   | 2.80        | 2.04       |\n| 2526.3     | 12.15 | m²   | 3.39        | 3.58       |\n| TOILET     | 1.34  | m²   | 1.33        | 1.00       |\n| 561.3      | 2.86  | m²   | 2.80        | 1.02       |\n| TOILET     | 2.86  | m²   | 2.80        | 1.02       |\n| TOILET     | 3.40  | m²   | 3.39        | 1.00       |\n| -200.0-    | 1.34  | m²   | 1.33        | 1.00       |\n| SHOP 3     | 5.72  | m²   | 2.80        | 2.04       |\n| GYM        | 1.34  | m²   | 1.33        | 1.00       |\n| KITCHEN    | 1.34  | m²   | 1.33        | 1.00       |\n| TOILET     | 1.34  | m²   | 1.33        | 1.00       |\n| SHOP 2     | 1.99  | m²   | 2.80        | 0.71       |\n| SHOP 2     | 1.99  | m²   | 2.80        | 0.71       |\n| TOILET    "
     }
   ],
-  "errors": [
-    "Overlay: no boxes drawn (items have no coordinate_polygons or overlay fallback failed)",
-    "Report: all values are 0"
-  ]
+  "errors": []
 }

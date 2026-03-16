@@ -6,13 +6,28 @@
 /** Prior step: extract visible text from the floorplan (room labels, dimensions, notes) to feed into extraction. Set ENABLE_PLAN_TEXT_EXTRACTION=false to skip. */
 export const PLAN_TEXT_EXTRACTION_PROMPT = `Look at this floorplan image. List all text that is visible on the plan: room labels (e.g. Bedroom, Kitchen, Garage), dimension labels (e.g. 6.54m, 3.7m), and any other printed text. Output a simple list, one line per item or group. Do not add explanations or JSON.`;
 
+/**
+ * Prior step (with coordinates): extract each visible text with its bounding box so we can align room boxes to labels.
+ * Response must be JSON: { "textItems": [ { "label": "string", "box": [x_min, y_min, x_max, y_max] } ] } in image pixels, top-left origin.
+ */
+export const PLAN_TEXT_AND_COORDINATES_PROMPT = `Look at this floorplan image. For every visible text label (room names like Bedroom, Kitchen, Garage; dimension labels like 6.54m, 3.7m; and any other printed text), give the exact text and its approximate bounding box in image pixels.
+
+Rules:
+- box is [x_min, y_min, x_max, y_max] in pixels from the top-left of the image. x_min < x_max, y_min < y_max.
+- One entry per distinct label. For dimensions you can use the label value (e.g. "6.54m") and a tight box around that text.
+- Room labels are the main goal when present. If the plan has **no or almost no text** (e.g. it is a colour-block or coloured floorplan with only coloured regions), return an empty list: {"textItems":[]}. Do not invent labels.
+
+Return ONLY a valid JSON object with no markdown, no code fence, no text before or after:
+{"textItems":[{"label":"Garage","box":[100,200,180,220]},{"label":"6.54m","box":[120,400,160,415]},...]}
+For colour-only plans with no text: {"textItems":[]}`;
+
 /** Vision extraction: architectural bounding boxes, windows, doors. Use when input is a floorplan image. */
 export const EXTRACTION_VISION_USER_PROMPT = `You are an expert Architectural Data Extraction Agent. Extract every room (space), window, and door from the floorplan image so each can be referenced by number (e.g. "Space 3", "Window 2", "Door 1") for further analysis.
 
 **Do not hallucinate.** Only output what you can see in the image:
-- Include only spaces that have a **visible text label** on the plan (e.g. "Bedroom", "Kitchen", "Garage"). Do not infer or invent rooms from furniture or unlabeled areas.
-- Each box_2d must be measured from the **actual pixel positions** of the drawn wall lines in the image. Do not extend boxes to the page edge or guess boundaries; if a wall is unclear, use the nearest clear line.
-- Use the exact room names from the labels on the plan. Do not guess or rename.
+- **Plans with text labels:** Include spaces that have a visible text label (e.g. "Bedroom", "Kitchen", "Garage"). Use the exact room names from the plan. Do not infer from furniture.
+- **Coloured / color-block plans (no or few text labels):** If the plan uses solid colours or filled regions to show rooms (e.g. each area is a different colour with black wall lines), treat each **distinct coloured region bounded by walls** as one space. Assign names by position: "Zone 1", "Zone 2", … or "Space 1", "Space 2", … in top-left to bottom-right order. You may optionally describe by colour in the name (e.g. "Zone 1 (blue)") if it helps. Do not skip the plan just because there are no text labels — still output one room per enclosed coloured region with correct box_2d.
+- Each box_2d must be measured from the **actual pixel positions** of the wall lines (or the boundary of the coloured region). Do not extend boxes to the page edge.
 
 Critical rules:
 
@@ -30,7 +45,7 @@ Critical rules:
 
 5) **Tight boxes on walls.** Each room box_2d must tightly enclose one space by tracing the wall lines that enclose it. Window and door box_2d should enclose the opening on the plan.
 
-6) **Use only the labels on the plan.** Output one room per **visible printed label** (e.g. "Bedroom", "Kitchen", "Garage"). Preserve exact spelling. Do not add rooms that are not explicitly labeled; do not infer from furniture (e.g. a bed) — only from text labels and wall boundaries. Laundry and Bath are two labels → two rooms.
+6) **Naming.** When the plan has text labels: use exact spelling, one room per visible label. When the plan has **no or few text labels** (e.g. colour-block or coloured regions only): output one room per distinct enclosed region, name by position (e.g. "Zone 1", "Zone 2") or "Space 1", "Space 2" in top-left order. Never leave the plan with zero rooms — coloured regions bounded by walls count as rooms.
 
 7) **Dimensions (walls as key lengths).** Where dimension lines are drawn on the plan with labels in meters, use those values for room metadata: length_m, width_m, approx_area_m2. Prefer the **dimension line labels** over pixel-derived estimates so the report reflects the drawn wall lengths (e.g. garage 6.54m × (3.7+3.47)m if the plan shows that).
 
@@ -55,7 +70,7 @@ Output format: Return ONLY a valid JSON object. No markdown, no text outside the
 /** Second-pass review (multilook): same image + first-pass JSON → corrected JSON. Used when ENABLE_EXTRACTION_REVIEW_PASS=true. */
 export const EXTRACTION_REVIEW_USER_PROMPT = `You are reviewing a previous extraction from this floorplan image. Below is the JSON that was extracted.
 
-Do not hallucinate: only keep or add spaces that have a visible text label on the plan; box_2d must follow the actual drawn wall lines in the image, not the page edge.
+Do not hallucinate. For labelled plans: keep or add spaces that have a visible text label. For coloured/color-block plans with no labels: keep or add one space per distinct coloured region bounded by walls; name by position (Zone 1, Zone 2, …). box_2d must follow the actual wall lines or region boundaries, not the page edge.
 
 Your task:
 1) **Do not merge distinct spaces.** Laundry and Bath are two separate rooms; keep them as two entries. Add any rooms missing from the list.
@@ -70,7 +85,7 @@ Return ONLY the corrected JSON object. No markdown code fences or text before or
 
 /** System message for vision extraction (keeps model to JSON-only, strict box format). */
 export const EXTRACTION_VISION_SYSTEM = `You are an expert Architectural Data Extraction Agent. Output only valid JSON. Do not wrap the JSON in markdown code blocks or add any text before or after.
-Do not hallucinate: only list spaces that have a visible text label on the plan; measure box_2d from actual wall lines in the image, not the page edge. box_2d is [x_min, y_min, x_max, y_max] in image pixels. Number rooms by position: Space 1 = top-left, then left-to-right by row. Use dimension line labels (m) for length_m/width_m when visible. Include windows[] and doors[] with id and box_2d.`;
+Do not hallucinate. For plans with text labels: list spaces that have a visible label; use exact names. For coloured/color-block plans with no or few labels: list every distinct coloured region bounded by walls as a room; name by position (Zone 1, Zone 2, … or Space 1, Space 2, …) in top-left order. Never return zero rooms when the image shows enclosed regions. box_2d is [x_min, y_min, x_max, y_max] in image pixels. Number rooms by position: Space 1 = top-left, then left-to-right by row. Include windows[] and doors[] with id and box_2d when present.`;
 
 export const SYSTEM_PROMPTS = {
   EXTRACTION: `You are an expert at extracting structured data from construction documents and floorplans.

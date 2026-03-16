@@ -28,6 +28,7 @@ Next.js 15 (App Router) + Neon / Supabase + Drizzle + Payload. Follow the bluepr
 
 ## Manual actions (when ready)
 
+- **AI template:** For using this repo as a base for other AI apps, see `docs/AI_App_Template_Readiness.md` (env, API, what to replace).
 - **Setup:** Use the `/setup` page; link Neon, Vercel Blob, env vars. See `docs/DATABASE_OPTIONS.md`, `docs/SCHEMA_SETUP.md`.
 - **Payload CMS:** Configure `collections/` and `payload.config.ts` when you need admin/CMS.
 - **Health / readiness:** `GET /api/health` (always 200). `GET /api/ready` (200 if DB reachable; for load balancers).

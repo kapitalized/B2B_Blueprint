@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy | [SiteName]</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary: #4b5563;
+            --primary-hover: #374151;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --bg-body: #ffffff;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            background-color: var(--bg-body);
+            scroll-behavior: smooth;
+        }
+
+        .policy-section {
+            scroll-margin-top: 2rem;
+        }
+
+        .sidebar-link.active {
+            color: #111827;
+            font-weight: 600;
+            border-left: 2px solid #111827;
+            background-color: #f3f4f6;
+        }
+
+        .glass-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+        }
+
+        .prose a {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Main Content Grid -->
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="flex flex-col lg:flex-row gap-12">
+            
+            <!-- Sidebar Navigation (Desktop) -->
+            <aside class="hidden lg:block w-64 flex-shrink-0">
+                <div class="sticky top-8 space-y-1">
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 px-3">Contents</p>
+                    <nav id="sidebar-nav">
+                        <!-- Links generated via JS -->
+                    </nav>
+                </div>
+            </aside>
+
+            <!-- Policy Content -->
+            <article class="flex-1 glass-card rounded-xl p-6 md:p-12 shadow-sm">
+                <header class="mb-10 border-b border-gray-100 pb-8">
+                    <h1 class="text-4xl font-extrabold text-gray-900 mb-4">Privacy Policy</h1>
+                    <p class="text-gray-600 mb-4">This Privacy Policy describes the agreement between <strong>[SiteName]</strong> and <strong>you the User</strong> regarding the collection and use of data on this platform. This policy should be read in conjunction with our <a href="/terms" class="text-blue-600 underline">Terms of Use</a>.</p>
+                    <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                        <span>Last Updated: [Date]</span>
+                        <span>•</span>
+                        <span>Version: [Version]</span>
+                    </div>
+                </header>
+
+                <div id="policy-body" class="prose prose-slate max-w-none text-gray-600 leading-relaxed space-y-10">
+                    <!-- Section content injected via JS -->
+                </div>
+
+                <footer class="mt-20 pt-10 border-t border-gray-100 text-center">
+                    <p class="text-gray-500 text-sm mb-6">Need to contact us about privacy and data retention?</p>
+                    <a href="mailto:[ContactEmail]" class="inline-block bg-gray-100 hover:bg-gray-200 text-gray-700 px-8 py-3 rounded-md font-medium transition-colors" id="contact-btn">
+                        Contact us
+                    </a>
+                </footer>
+            </article>
+        </div>
+    </main>
+
+    <script>
+        /**
+         * APP CONFIGURATION
+         * Update the bracketed placeholders to customize for specific sites.
+         */
+        const APP_CONFIG = {
+            appName: "[SiteName]",
+            sections: [
+                {
+                    id: "intro",
+                    title: "Introduction",
+                    content: `Welcome to [SiteName]. We are committed to protecting your data and privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our platform. By accessing the platform, you agree to these terms.`
+                },
+                {
+                    id: "data-collection",
+                    title: "Information We Collect",
+                    content: `To provide our services, we collect the following categories of information:
+                    <ul>
+                        <li><strong>Registration Data:</strong> Name, work email, and login credentials provided during the registration process.</li>
+                        <li><strong>User-Uploaded Content:</strong> Documents and data you provide to the platform for analysis.</li>
+                        <li><strong>Usage Metadata:</strong> Logs of your interactions with the platform to ensure security and performance.</li>
+                        <li><strong>Publicly Available Data:</strong> The platform may utilize publicly available data to support analysis or provide context to your inputs.</li>
+                    </ul>`
+                },
+                {
+                    id: "ai-processing",
+                    title: "Data Processing",
+                    content: `The platform processes your uploaded documents specifically to provide analysis requested by you. 
+                    <div class="bg-gray-50 border border-gray-200 p-4 my-4 rounded-md">
+                        <p class="text-sm text-gray-700"><strong>Note:</strong> We do not use your private uploaded documents to train general models without explicit consent. Data is processed to generate results within your secure workspace.</p>
+                    </div>`
+                },
+                {
+                    id: "data-usage",
+                    title: "How We Use Data",
+                    content: `We use your information to:
+                    <ol>
+                        <li>Provide and maintain the features of the platform.</li>
+                        <li>Ensure secure authenticated access to your account.</li>
+                        <li>Combine user inputs with public data to deliver information.</li>
+                        <li>Comply with legal obligations.</li>
+                    </ol>`
+                },
+                {
+                    id: "sharing",
+                    title: "Data Sharing",
+                    content: `We do not sell your data. We share information only with necessary infrastructure providers (such as hosting and encrypted processing services) required to operate the platform, or as required by law.`
+                },
+                {
+                    id: "retention",
+                    title: "Data Retention & Security",
+                    content: `We implement standard security measures to protect your data. Your uploaded documents and account data are retained for as long as your account is active or as needed to provide you with the services of the platform.`
+                },
+                {
+                    id: "rights",
+                    title: "Your Rights",
+                    content: `You have the right to access, export, or request the deletion of your account and any associated documents. Please contact us via the link below if you wish to exercise these rights.`
+                }
+            ]
+        };
+
+        function initPolicy() {
+            const sidebarNav = document.getElementById('sidebar-nav');
+            const policyBody = document.getElementById('policy-body');
+
+            APP_CONFIG.sections.forEach((section, index) => {
+                // Create Sidebar Links
+                const link = document.createElement('a');
+                link.href = `#${section.id}`;
+                link.className = `sidebar-link block px-3 py-2 text-sm font-medium transition-all rounded-md mb-1 hover:bg-gray-50 text-gray-500 ${index === 0 ? 'active' : ''}`;
+                link.textContent = section.title;
+                link.dataset.id = section.id;
+                sidebarNav.appendChild(link);
+
+                // Create Content Sections
+                const div = document.createElement('section');
+                div.id = section.id;
+                div.className = 'policy-section space-y-4';
+                div.innerHTML = `
+                    <h2 class="text-xl font-bold text-gray-900">${section.title}</h2>
+                    <div class="text-gray-600 space-y-3">
+                        ${section.content}
+                    </div>
+                `;
+                policyBody.appendChild(div);
+            });
+        }
+
+        function handleScroll() {
+            const sections = document.querySelectorAll('.policy-section');
+            const navLinks = document.querySelectorAll('.sidebar-link');
+            
+            let current = "";
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (window.scrollY >= sectionTop - 150) {
+                    current = section.getAttribute("id");
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove("active");
+                if (link.dataset.id === current) {
+                    link.classList.add("active");
+                }
+            });
+        }
+
+        window.addEventListener('scroll', handleScroll);
+        window.addEventListener('DOMContentLoaded', initPolicy);
+    </script>
+</body>
+</html>

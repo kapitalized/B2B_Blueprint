@@ -12,22 +12,34 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const importMapPath = path.join(__dirname, '..', 'app', '(payload)', 'admin', 'importMap.js');
+const root = path.join(__dirname, '..');
+// Write to both path variants so the file Next.js reads is fixed (Windows can have two path forms).
+const importMapPaths = [
+  path.join(root, 'app', '(payload)', 'admin', 'importMap.js'),
+  path.join(root, 'app') + '/(payload)/admin/importMap.js',
+];
 
-let content = readFileSync(importMapPath, 'utf8');
-let changed = false;
-
-// Fix 1: Generator sometimes writes ../../../_components/ or similar (wrong). Should be ./_components/
+let content;
+try {
+  content = readFileSync(importMapPaths[0], 'utf8');
+} catch (e) {
+  try {
+    content = readFileSync(importMapPaths[1], 'utf8');
+  } catch {
+    throw e;
+  }
+}
 const before = content;
-content = content.replace(/from '\.\.\/.*?_components\//g, "from './_components/");
-if (content !== before) changed = true;
-// Fix 2: Legacy pattern from before move to _components
+// Fix: Generator writes ../../../_components/ (wrong). Use ./_components/ relative to importMap.js.
+content = content.replace(/from ['"](\.\.\/)+_components\//g, "from './_components/");
 if (content.includes("from 'components/admin-payload/")) {
   content = content.replaceAll("from 'components/admin-payload/", "from '@/components/admin-payload/");
-  changed = true;
 }
-
-if (changed) {
-  writeFileSync(importMapPath, content, 'utf8');
+if (content !== before) {
+  for (const p of importMapPaths) {
+    try {
+      writeFileSync(p, content, 'utf8');
+    } catch (_) {}
+  }
   console.log('fix-importmap: Corrected import paths in importMap.js.');
 }

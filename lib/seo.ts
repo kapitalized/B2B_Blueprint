@@ -37,6 +37,16 @@ export const PAGES: Record<string, PageMeta> = {
     description: `Contact ${BRAND.name} for sales and support.`,
     robots: 'index, follow',
   },
+  privacy: {
+    title: 'Privacy Policy',
+    description: `Privacy policy for ${BRAND.name} — how we collect, use, and protect your data.`,
+    robots: 'index, follow',
+  },
+  terms: {
+    title: 'Terms of Service',
+    description: `Terms of service for using ${BRAND.name} — acceptable use and legal terms.`,
+    robots: 'index, follow',
+  },
 };
 
 const DEFAULT_DESCRIPTION = BRAND.slogan;

@@ -13,3 +13,12 @@ export { createCheckoutSession } from './checkout';
 export { createBillingPortalSession } from './portal';
 export { getOrgBillingStatus, type OrgBillingStatus } from './get-org-billing';
 export { listInvoicesForCustomer, type BillingInvoice } from './invoices';
+export {
+  listCoupons,
+  createCoupon,
+  updateCoupon,
+  deleteCoupon,
+  createPromotionCode,
+  type CouponRow,
+  type CreateCouponParams,
+} from './coupons';

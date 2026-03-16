@@ -9,7 +9,7 @@ import { NextResponse } from 'next/server';
 import { getSessionForApi } from '@/lib/auth/session';
 import { runPipeline } from '@/lib/ai/orchestrator';
 import { getAIModelConfig } from '@/lib/ai/model-config';
-import { PLAN_TEXT_EXTRACTION_PROMPT } from '@/lib/ai/base-prompts';
+import { PLAN_TEXT_AND_COORDINATES_PROMPT } from '@/lib/ai/base-prompts';
 import { persistPipelineResult } from '@/lib/ai/persistence';
 import { loadLibraryContextForPipeline } from '@/lib/ai/library-context';
 import { db } from '@/lib/db';
@@ -128,12 +128,23 @@ export async function POST(req: Request) {
       reportShortId: reportShortId ?? null,
       extractionProvider,
       extractionProviderError,
-      /** Prompt used for the prior "extract text from plan" step (when ENABLE_PLAN_TEXT_EXTRACTION is not false). */
-      planTextExtractionPrompt: PLAN_TEXT_EXTRACTION_PROMPT,
-      /** Raw text extracted from the plan in the prior step (room labels, dimensions). Empty if step skipped or failed. */
+      /** Prompt used for the prior "extract text + coordinates from plan" step (when ENABLE_PLAN_TEXT_EXTRACTION is not false). */
+      planTextExtractionPrompt: PLAN_TEXT_AND_COORDINATES_PROMPT,
+      /** Raw text (or JSON) from the plan text step. */
       planTextExtraction: result.planTextExtraction ?? '',
+      /** Parsed text items with labels and boxes for alignment (when step returned valid JSON). */
+      planTextItems: result.planTextItems ?? [],
       /** Number of times the plan image was sent to the model (plan text + main extraction + optional review pass). */
       planLooksCount,
+      /** Temperature used per pipeline step (lower = more deterministic). See docs/Testing/Temperature_And_Analysis.md. */
+      temperatures: {
+        planTextExtraction: 0,
+        extraction: 0.2,
+        extractionRetry: 0.2,
+        ...(process.env.ENABLE_EXTRACTION_REVIEW_PASS === 'true' ? { extractionReviewPass: 0.2 } : {}),
+        analysis: 0.3,
+        synthesis: 'default',
+      },
       extractionLabels,
       extractionSpaceIds,
       extractionWindows,

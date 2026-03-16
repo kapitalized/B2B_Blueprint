@@ -23,6 +23,16 @@ export const DEFAULT_PAGES = [
     title: 'Contact',
     metaDescription: `Contact ${BRAND.name} for sales and support.`,
   },
+  {
+    slug: 'privacy',
+    title: 'Privacy Policy',
+    metaDescription: `Privacy policy for ${BRAND.name} — how we collect, use, and protect your data.`,
+  },
+  {
+    slug: 'terms',
+    title: 'Terms of Service',
+    metaDescription: `Terms of service for using ${BRAND.name} — acceptable use and legal terms.`,
+  },
 ];
 
 export type SeedResult = { created: string[]; skipped: string[] };

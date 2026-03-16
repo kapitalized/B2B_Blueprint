@@ -6,13 +6,15 @@ import { BRAND } from '@/lib/brand';
 
 export default function AdminLogo() {
   return (
-    <Image
-      src={BRAND.logo}
-      alt={BRAND.name}
-      width={120}
-      height={32}
-      className="h-8 w-auto object-contain"
-      priority
-    />
+    <span className="inline-block max-h-8 max-w-[120px] shrink-0">
+      <Image
+        src={BRAND.logo}
+        alt={BRAND.name}
+        width={120}
+        height={32}
+        className="h-8 w-auto max-h-8 object-contain"
+        priority
+      />
+    </span>
   );
 }

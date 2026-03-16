@@ -6,10 +6,12 @@ import { formatDateTime } from '@/lib/format-date';
 interface ChatRow {
   id: string;
   title: string;
+  contextSummary: string | null;
   lastActivity: string | null;
   projectName: string;
   projectShortId: string | null;
   userEmail: string;
+  messageCount: number;
 }
 
 export function ChatsView() {
@@ -31,7 +33,7 @@ export function ChatsView() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Chats</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Chat threads by project and user.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Chat threads: title, project, user, message count, context summary, last activity.</p>
       <div className="mt-4 overflow-x-auto rounded border">
         <table className="w-full text-sm">
           <thead>
@@ -39,18 +41,22 @@ export function ChatsView() {
               <th className="p-2 text-left font-medium">Title</th>
               <th className="p-2 text-left font-medium">Project</th>
               <th className="p-2 text-left font-medium">User</th>
+              <th className="p-2 text-right font-medium">Messages</th>
+              <th className="p-2 text-left font-medium">Context</th>
               <th className="p-2 text-left font-medium">Last activity</th>
             </tr>
           </thead>
           <tbody>
             {chats.length === 0 ? (
-              <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">No chats.</td></tr>
+              <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No chats.</td></tr>
             ) : (
               chats.map((c) => (
                 <tr key={c.id} className="border-b last:border-0">
                   <td className="p-2">{c.title}</td>
                   <td className="p-2">{c.projectName} {c.projectShortId ? `(${c.projectShortId})` : ''}</td>
                   <td className="p-2">{c.userEmail}</td>
+                  <td className="p-2 text-right">{c.messageCount}</td>
+                  <td className="p-2 max-w-[200px] truncate text-muted-foreground" title={c.contextSummary ?? undefined}>{c.contextSummary ?? '—'}</td>
                   <td className="p-2">{c.lastActivity ? formatDateTime(c.lastActivity) : '—'}</td>
                 </tr>
               ))

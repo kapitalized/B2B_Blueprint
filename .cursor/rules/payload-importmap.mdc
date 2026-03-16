@@ -1,0 +1,14 @@
+---
+description: Run fix:importmap after Payload updates that can regenerate the admin import map
+globs: payload.config.ts,**/app/(payload)/**/*.tsx,**/app/(payload)/**/*.ts
+alwaysApply: false
+---
+
+# Payload import map fix
+
+After any change that can regenerate or affect the Payload admin import map, run the fix script so admin component paths resolve correctly:
+
+- **When:** You edit `payload.config.ts`, add/remove admin views or components, or regenerate the import map (e.g. `payload generate:importmap`).
+- **Action:** Run `npm run fix:importmap` (or correct `app/(payload)/admin/importMap.js` so imports use `./_components/` not `../../../_components/`).
+
+Prefer using `npm run payload:importmap` to regenerate the map, since it runs the fix automatically.

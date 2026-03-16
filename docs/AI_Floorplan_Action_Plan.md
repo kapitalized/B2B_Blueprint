@@ -33,7 +33,8 @@
 | Vision model fallback | Implemented: `getExtractionModelForVision(configured)` uses Gemini when configured model is not vision-capable; **does not override** when user selects gpt-4o-mini (which is vision). |
 | Private blob → data URL | Implemented: `privateBlobToDataUrl` used when `fileUrl` is private blob. |
 | Default extraction in `model-selector` | Default is `google/gemini-2.0-flash-001`; Admin can override to gpt-4o-mini. |
-| **Plan text extraction (prior step)** | Implemented: when `ENABLE_PLAN_TEXT_EXTRACTION` is not `false`/`0`, a vision call extracts visible text (room labels, dimensions) from the plan, then that text is prepended to the extraction prompt. Set `ENABLE_PLAN_TEXT_EXTRACTION=false` to skip. Single-pass and multilook both use it. |
+| **Plan text extraction (prior step)** | Implemented: when `ENABLE_PLAN_TEXT_EXTRACTION` is not `false`/`0`, a vision call extracts visible text **and coordinates** (JSON: `textItems` with `label` and `box` [x_min,y_min,x_max,y_max]). That list is prepended to the extraction prompt. After main extraction, **alignment**: for each room with `box_2d`, we find text items whose box center lies inside the room and set the room name from that label (prefer room-like labels over dimension-only). Set `ENABLE_PLAN_TEXT_EXTRACTION=false` to skip. Single-pass and multilook both use it. |
+| **Coloured / color-block floorplans** | Prompts updated: when the plan has no or few text labels (e.g. solid coloured regions with black wall lines), the model is instructed to treat each **distinct coloured region bounded by walls** as a room, name by position (Zone 1, Zone 2, …), and never return zero rooms. Plan text step may return `{"textItems":[]}`; extraction then receives a hint to extract coloured regions. |
 
 ---
 

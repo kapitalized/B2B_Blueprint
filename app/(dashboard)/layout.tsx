@@ -67,8 +67,10 @@ export default async function DashboardLayout({
         </nav>
       </header>
       <main className="flex-1 p-6">{children}</main>
-      <footer className="border-t px-6 py-3 text-center text-xs text-muted-foreground">
-        System status · {BRAND.name}
+      <footer className="border-t px-6 py-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span>System status · {BRAND.name}</span>
+        <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
+        <Link href="/terms" className="hover:text-foreground">Terms</Link>
       </footer>
     </div>
   );

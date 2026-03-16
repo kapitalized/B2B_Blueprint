@@ -1,15 +1,91 @@
-/* Payload admin UI overrides. Keep minimal for template. */
+/* Payload admin UI overrides. Loaded only in (payload) layout. Keep minimal to avoid breaking layout. */
 
-/* Admin nav (sidebar): visible on every page, expanded by default.
-   Loaded only in (payload) layout so these apply only to admin. */
+/* 1. Logo: keep small. */
 @layer payload {
-  /* Keep sidebar/nav visible and wide (Payload BEM: .nav or similar) */
-  [class*='nav'] {
-    min-width: 14rem !important;
+  [class*='logo'] img,
+  header img[alt],
+  a[href='/admin'] img {
+    max-height: 2rem !important;
+    height: 2rem !important;
+    width: auto !important;
+    max-width: 120px !important;
+    object-fit: contain !important;
   }
-  aside[class*='nav'],
-  aside:first-child {
-    display: flex !important;
-    min-width: 14rem !important;
+}
+
+/* 2. When nav is open: custom links stack vertically (one per line). */
+@layer payload {
+  .nav__wrap > a,
+  .nav__wrap > div > a,
+  .nav a[href^='/admin'] {
+    display: block !important;
+    width: 100% !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+}
+
+/* 2b. Custom nav section headers: different shade so sections are visible. */
+@layer payload {
+  .admin-nav-section-header {
+    display: block !important;
+    width: 100% !important;
+    padding: 0.5rem 0.75rem !important;
+    margin-top: 0.625rem !important;
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+    color: var(--theme-elevation-600, #4b5563) !important;
+    background: var(--theme-elevation-150, #e5e7eb) !important;
+    border-radius: 0.25rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .nav__wrap .admin-nav-section-header:first-child,
+  .nav__wrap > div .admin-nav-section-header:first-child {
+    margin-top: 0 !important;
+  }
+  [data-theme='dark'] .admin-nav-section-header,
+  .dark .admin-nav-section-header {
+    background: var(--theme-elevation-800, #374151) !important;
+    color: var(--theme-elevation-400, #9ca3af) !important;
+  }
+}
+
+/* 2c. Hide Payload's built-in Globals collapsible section (we show Globals + Site Settings in custom nav). */
+@layer payload {
+  .nav__wrap > *:has(a[href*='globals/site-settings']),
+  .nav-group:has(a[href*='globals/site-settings']),
+  #nav-group-Globals,
+  .nav-group.Globals {
+    display: none !important;
+  }
+}
+
+/* 2d. Hide Payload's top Collections section (duplicate of our Globals/Content links). */
+@layer payload {
+  .nav-group:has(a[href='/admin/collections/users']),
+  .nav-group:has(a[href='/admin/collections/pages']) {
+    display: none !important;
+  }
+}
+
+/* 2e. Hide the "Admin" nav group (External Integrations lives here; add to custom nav if needed). */
+@layer payload {
+  #nav-group-Admin,
+  .nav-group.Admin {
+    display: none !important;
+  }
+}
+
+/* 3. Table wrappers: don't overflow page. */
+@layer payload {
+  main .overflow-x-auto,
+  [role='main'] .overflow-x-auto {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
 }

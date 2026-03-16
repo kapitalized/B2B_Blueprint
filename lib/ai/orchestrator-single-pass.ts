@@ -5,7 +5,7 @@
 
 import { getAIModelConfig } from './model-config';
 import { getExtractionModelForVision } from './openrouter-models';
-import { getSystemPrompt, EXTRACTION_VISION_SYSTEM, EXTRACTION_VISION_USER_PROMPT, PLAN_TEXT_EXTRACTION_PROMPT } from './base-prompts';
+import { getSystemPrompt, EXTRACTION_VISION_SYSTEM, EXTRACTION_VISION_USER_PROMPT, PLAN_TEXT_EXTRACTION_PROMPT, PLAN_TEXT_AND_COORDINATES_PROMPT } from './base-prompts';
 import { callOpenRouter, isOpenRouterConfigured } from './openrouter';
 import { runCitationAudit, type AuditItem, type Benchmark } from './citation-audit';
 import { createAuditEntry, appendAuditEntry } from './audit-trail';
@@ -113,6 +113,8 @@ export interface PipelineResult {
   rawExtractionResponse?: string;
   /** When plan text extraction ran: raw text from the prior step (room labels, dimensions). */
   planTextExtraction?: string;
+  /** When plan text step returned JSON: text labels with bounding boxes for alignment. */
+  planTextItems?: Array<{ label: string; box: number[] }>;
 }
 
 function stubExtraction(): ExtractionResult {
@@ -172,6 +174,7 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
   let extractionContent = '';
   let extractionRooms: Array<Record<string, unknown>> | null = null;
   let planTextExtraction: string | undefined;
+  let planTextItems: Array<{ label: string; box: number[] }> | undefined;
 
   if (hasKey) {
     try {
@@ -188,7 +191,7 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
         console.warn('[AI extraction] Image data URL too short; possible missing image');
         imageUrlForVision = undefined;
       }
-      // Optional prior step: extract visible text from the plan (room labels, dimensions) to improve extraction
+      // Optional prior step: extract visible text and coordinates from the plan for alignment
       let planText = '';
       if (imageUrlForVision && process.env.ENABLE_PLAN_TEXT_EXTRACTION !== 'false' && process.env.ENABLE_PLAN_TEXT_EXTRACTION !== '0') {
         try {
@@ -199,12 +202,12 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
               {
                 role: 'user' as const,
                 content: [
-                  { type: 'text' as const, text: PLAN_TEXT_EXTRACTION_PROMPT },
+                  { type: 'text' as const, text: PLAN_TEXT_AND_COORDINATES_PROMPT },
                   { type: 'image_url' as const, image_url: { url: imageUrlForVision } },
                 ],
               },
             ],
-            max_tokens: 1024,
+            max_tokens: 2048,
             temperature: 0,
           });
           const raw = textRes.content;
@@ -219,13 +222,18 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
                 : String(raw ?? '').trim();
           if (planText) {
             planTextExtraction = planText;
+            const parsed = parsePlanTextItems(planText);
+            if (parsed.length > 0) planTextItems = parsed;
             pushTrace({
               step: 'EXTRACTION',
               stepLabel: 'Plan text extraction',
               model: modelForVision,
               responsePreview: planText.slice(0, 500),
             });
-            extractionPrompt = `${extractionBase}\n\n---\nPreviously extracted text from the plan (use for room names and dimensions):\n${planText}\n\n---\nNow output the JSON as specified above.`;
+            const textSummary = planTextItems?.length
+              ? `Labels with positions (${planTextItems.length} items): ${planTextItems.map((t) => t.label).join(', ')}`
+              : 'No text labels found (plan may be colour-block or coloured regions only). Extract each distinct coloured region bounded by walls as a room; name by position (Zone 1, Zone 2, …) in top-left order.';
+            extractionPrompt = `${extractionBase}\n\n---\nPreviously extracted text from the plan (use for room names and dimensions):\n${textSummary}\n\n---\nNow output the JSON as specified above.`;
           }
         } catch (_e) {
           // optional step; continue with extraction without plan text
@@ -329,14 +337,18 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
       }
 
       raw_extraction = parseExtraction(extractionContent);
-      // Always prefer names from raw rooms by index so report never loses extraction labels (A1)
+      // Align room names to plan text labels by position, then prefer names from raw rooms (A1).
+      // raw_extraction.items are in sorted order (top-left first); rawRooms are in model order — sort rawRooms the same way so index i matches.
       if (useVisionPrompt && raw_extraction.items.length > 0) {
         try {
           const reparse = JSON.parse(extractJson(extractionContent)) as Record<string, unknown>;
           const rawRooms = (reparse.rooms ?? (reparse as { Rooms?: unknown }).Rooms) as Array<Record<string, unknown>> | undefined;
           if (Array.isArray(rawRooms) && rawRooms.length >= raw_extraction.items.length) {
+            if (planTextItems && planTextItems.length > 0) alignRoomsToTextItems(rawRooms, planTextItems);
+            const rawRoomsSorted = sortRoomsByTopLeft(rawRooms);
+            extractionRooms = rawRoomsSorted;
             raw_extraction.items.forEach((item, i) => {
-              const r = rawRooms[i];
+              const r = rawRoomsSorted[i];
               const name = r?.name ?? (r as { Name?: string }).Name ?? r?.room_name ?? r?.label;
               if (name != null && String(name).trim()) item.label = String(name).trim();
             });
@@ -348,11 +360,11 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
       if (process.env.DEBUG_AI_EXTRACTION && raw_extraction.items.length > 0) {
         console.debug('[AI extraction] parsed labels:', raw_extraction.items.map((i) => i.label));
       }
-      if (useVisionPrompt && extractionContent && raw_extraction.items.length > 0) {
+      if (useVisionPrompt && extractionContent && raw_extraction.items.length > 0 && !extractionRooms) {
         try {
           const p = JSON.parse(extractJson(extractionContent)) as Record<string, unknown>;
           const rooms = (p.rooms ?? (p as { Rooms?: unknown }).Rooms) as Array<Record<string, unknown>> | undefined;
-          if (Array.isArray(rooms) && rooms.length >= raw_extraction.items.length) extractionRooms = rooms;
+          if (Array.isArray(rooms) && rooms.length >= raw_extraction.items.length) extractionRooms = sortRoomsByTopLeft(rooms);
         } catch {
           // ignore
         }
@@ -447,6 +459,7 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
           model: analysisModel,
           messages: [{ role: 'system', content: analysisSystem }, { role: 'user', content: analysisPrompt }],
           max_tokens: 2048,
+          temperature: 0.3,
         });
         analysisItems = parseAnalysisItems(content);
         if (analysisUsage) {
@@ -595,7 +608,74 @@ export async function runPipeline(params: OrchestratorParams): Promise<PipelineR
     stepTrace: stepTrace.length > 0 ? stepTrace : undefined,
     rawExtractionResponse: extractionContent || undefined,
     planTextExtraction,
+    planTextItems,
   };
+}
+
+/** Parse plan text step response into textItems with label and box. Returns [] if not valid JSON. */
+function parsePlanTextItems(raw: string): Array<{ label: string; box: number[] }> {
+  try {
+    const s = raw.trim().replace(/^```\s*\w*\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    const parsed = JSON.parse(s) as { textItems?: Array<{ label?: string; box?: unknown }> };
+    const arr = parsed?.textItems;
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .map((t) => {
+        const label = typeof t?.label === 'string' ? t.label.trim() : '';
+        const b = t?.box;
+        if (!Array.isArray(b) || b.length < 4) return null;
+        const box = b.slice(0, 4).map((n) => (typeof n === 'number' ? n : Number(n)));
+        if (box.some((n) => Number.isNaN(n))) return null;
+        return label ? { label, box } : null;
+      })
+      .filter((t): t is { label: string; box: number[] } => t != null);
+  } catch {
+    return [];
+  }
+}
+
+/** Sort rooms by top-left then left-to-right (y_min, x_min) — same order as mapRoomsToItems so indices match. */
+function sortRoomsByTopLeft(rooms: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+  return [...rooms].sort((a, b) => {
+    const boxA = (a.box_2d ?? a.box2d ?? a.bbox) as number[] | undefined;
+    const boxB = (b.box_2d ?? b.box2d ?? b.bbox) as number[] | undefined;
+    const yA = Array.isArray(boxA) && boxA.length >= 2 ? Number(boxA[1]) : 0;
+    const yB = Array.isArray(boxB) && boxB.length >= 2 ? Number(boxB[1]) : 0;
+    if (yA !== yB) return yA - yB;
+    const xA = Array.isArray(boxA) && boxA.length >= 1 ? Number(boxA[0]) : 0;
+    const xB = Array.isArray(boxB) && boxB.length >= 1 ? Number(boxB[0]) : 0;
+    return xA - xB;
+  });
+}
+
+/** Align room names to text items by position: if a text box center lies inside a room box, use that label. */
+function alignRoomsToTextItems(
+  rooms: Array<Record<string, unknown>>,
+  textItems: Array<{ label: string; box: number[] }>
+): void {
+  for (const room of rooms) {
+    const box2d = (room.box_2d ?? room.box2d ?? room.bbox) as number[] | undefined;
+    if (!Array.isArray(box2d) || box2d.length < 4) continue;
+    const [rx1, ry1, rx2, ry2] = box2d.map((n) => (typeof n === 'number' ? n : Number(n)));
+    if (Number.isNaN(rx1 + ry1 + rx2 + ry2) || rx1 >= rx2 || ry1 >= ry2) continue;
+    const inside: Array<{ label: string; area: number }> = [];
+    for (const t of textItems) {
+      const [tx1, ty1, tx2, ty2] = t.box;
+      const cx = (tx1 + tx2) / 2;
+      const cy = (ty1 + ty2) / 2;
+      if (cx >= rx1 && cx <= rx2 && cy >= ry1 && cy <= ry2) {
+        const area = (tx2 - tx1) * (ty2 - ty1);
+        inside.push({ label: t.label, area });
+      }
+    }
+    if (inside.length > 0) {
+      // Prefer room-like labels (longer, not just a dimension); else pick largest text area
+      const dimensionLike = /^[\d.,]+\s*m$/i;
+      const roomLike = inside.filter((x) => !dimensionLike.test(x.label) && x.label.length > 2);
+      const pick = roomLike.length > 0 ? roomLike.sort((a, b) => b.area - a.area)[0] : inside.sort((a, b) => b.area - a.area)[0];
+      room.name = pick.label;
+    }
+  }
 }
 
 /** Get bbox array from a detection object; Gemini/others may use bbox, bounding_box, bounds, coordinates. Coerces string numbers. */

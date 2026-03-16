@@ -24,6 +24,7 @@ export async function GET(req: Request) {
         fileType: project_files.fileType,
         fileSize: project_files.fileSize,
         uploadedAt: project_files.uploadedAt,
+        blobUrl: project_files.blobUrl,
         projectName: project_main.projectName,
         projectShortId: project_main.shortId,
       })
@@ -38,6 +39,7 @@ export async function GET(req: Request) {
       fileType: r.fileType,
       fileSize: r.fileSize ?? null,
       uploadedAt: r.uploadedAt?.toISOString() ?? null,
+      blobUrl: r.blobUrl ?? null,
       projectName: r.projectName ?? '—',
       projectShortId: r.projectShortId ?? null,
     }));

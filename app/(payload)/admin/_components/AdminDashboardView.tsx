@@ -3,6 +3,7 @@
 import Link from 'next/link';
 
 const LINKS = [
+  { href: '/admin/pages-seo', label: 'Pages & SEO', description: 'All pages: name, URL, SEO title, description, keywords (click to edit)' },
   { href: '/admin/app-users', label: 'App users', description: 'Users who sign in to the app (Neon/Supabase)' },
   { href: '/admin/ai-models', label: 'AI models (OpenRouter)', description: 'Pipeline and chat model config' },
   { href: '/admin/run-logs', label: 'Run logs', description: 'AI pipeline runs and token usage' },
@@ -10,6 +11,11 @@ const LINKS = [
   { href: '/admin/projects', label: 'Projects', description: 'App projects list' },
   { href: '/admin/chats', label: 'Chats', description: 'Chat threads by project' },
   { href: '/admin/files', label: 'Files', description: 'Project file uploads' },
+  { href: '/admin/stripe-plans', label: 'Stripe plans', description: 'Create, list, archive subscription plans' },
+  { href: '/admin/billing', label: 'Subscriptions', description: 'Org billing and subscription status' },
+  { href: '/admin/billings', label: 'Billings', description: 'Invoices that users have paid' },
+  { href: '/admin/ai-runs', label: 'AI analysis runs', description: 'View pipeline run output (JSON)' },
+  { href: '/admin/env', label: 'Environment', description: '.env.local / Vercel env (read-only, masked)' },
 ] as const;
 
 export function AdminDashboardView() {

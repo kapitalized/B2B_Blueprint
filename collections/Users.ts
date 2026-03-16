@@ -10,7 +10,9 @@ export const Users: CollectionConfig = {
     useAsTitle: 'email',
     description: 'CMS / Payload admins. For app sign-in users, see “App users” under App monitoring.',
   },
-  auth: true,
+  auth: {
+    tokenExpiration: 24 * 24 * 60 * 60 * 1000, // 24 days (max ~24.8) — keep admin logged in
+  },
   fields: [
     {
       name: 'role',

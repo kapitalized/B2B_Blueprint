@@ -22,6 +22,7 @@ export async function createCheckoutSession(params: {
   const session = await stripe.checkout.sessions.create({
     line_items: [{ price: priceId, quantity: 1 }],
     mode: 'subscription',
+    allow_promotion_codes: true,
     success_url: `${baseUrl || 'http://localhost:3000'}/dashboard/billing/confirmation`,
     cancel_url: `${baseUrl || 'http://localhost:3000'}/dashboard/billing?canceled=true`,
     customer_email: params.customerEmail,
