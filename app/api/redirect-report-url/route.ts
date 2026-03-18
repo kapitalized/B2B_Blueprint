@@ -1,6 +1,6 @@
 /**
  * Resolve projectId + reportId to short URL for redirect.
- * GET ?projectId=uuid&reportId=uuid → { url: "/project/shortId/slug/reports/reportShortId" } or 404.
+ * GET ?projectId=uuid&reportId=uuid → { url: "/project/shortId/slug/analyse/reportShortId" } or 404.
  */
 import { NextResponse } from 'next/server';
 import { getSessionForApi } from '@/lib/auth/session';
@@ -31,6 +31,6 @@ export async function GET(req: Request) {
   if (!project?.shortId || !project?.slug || !report?.shortId || report.projectId !== projectId) {
     return NextResponse.json({ error: 'Report or project not found' }, { status: 404 });
   }
-  const url = `/project/${project.shortId}/${project.slug}/reports/${report.shortId}`;
+  const url = `/project/${project.shortId}/${project.slug}/analyse/${report.shortId}`;
   return NextResponse.json({ url });
 }

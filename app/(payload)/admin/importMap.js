@@ -17,6 +17,7 @@ import { CouponsViewWithLayout as CouponsViewWithLayout_b5043a6752dd5b0c34abc498
 import { AIRunsViewWithLayout as AIRunsViewWithLayout_ef1298fd120294d214f0144c56080cc6 } from './_components/WithLayoutViews.tsx'
 import { DatabaseViewWithLayout as DatabaseViewWithLayout_ad619cf919ea5180ebbb7f607f42f97e } from './_components/DatabaseViewWithLayout.tsx'
 import { EnvViewWithLayout as EnvViewWithLayout_ef1298fd120294d214f0144c56080cc6 } from './_components/WithLayoutViews.tsx'
+import { ExternalApisViewWithLayout as ExternalApisViewWithLayout_ef1298fd120294d214f0144c56080cc6 } from './_components/WithLayoutViews.tsx'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
 export const importMap = {
@@ -39,5 +40,6 @@ export const importMap = {
   "./_components/WithLayoutViews.tsx#AIRunsViewWithLayout": AIRunsViewWithLayout_ef1298fd120294d214f0144c56080cc6,
   "./_components/DatabaseViewWithLayout.tsx#DatabaseViewWithLayout": DatabaseViewWithLayout_ad619cf919ea5180ebbb7f607f42f97e,
   "./_components/WithLayoutViews.tsx#EnvViewWithLayout": EnvViewWithLayout_ef1298fd120294d214f0144c56080cc6,
+  "./_components/WithLayoutViews.tsx#ExternalApisViewWithLayout": ExternalApisViewWithLayout_ef1298fd120294d214f0144c56080cc6,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }

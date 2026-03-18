@@ -1,0 +1,13 @@
+---
+description: Use Payload Local API for server-side logic; avoid internal REST fetch
+globs: "**/api/**/*.ts,**/lib/**/*.ts,**/app/**/*.ts"
+alwaysApply: false
+---
+
+# Payload server-side: use Local API
+
+For server-side code that reads or writes Payload data (API routes, server components, lib):
+
+- **Use the Local API:** `getPayload({ config })` then `payload.find()`, `payload.create()`, `payload.update()`, etc. Resolve config with `typeof config.then === 'function' ? await config : config` when using dynamic `import('@payload-config')`.
+- **Do not** use `fetch()` to call Payload REST/GraphQL from the same app (adds latency and extra serialization). Use the Local API instead.
+- After schema changes (collections, globals), run `npx payload generate:types` so types stay accurate.

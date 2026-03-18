@@ -7,6 +7,8 @@ import sharp from 'sharp';
 import { Users } from './collections/Users';
 import { Pages } from './collections/Pages';
 import { ExternalIntegrations } from './collections/ExternalIntegrations';
+import { ApiSources } from './collections/ApiSources';
+import { ExternalApiRuns } from './collections/ExternalApiRuns';
 import { SiteSettings } from './globals/SiteSettings';
 
 const databaseUrl = process.env.DATABASE_URL || process.env.DATABASE_URI;
@@ -119,10 +121,16 @@ export default buildConfig({
           exact: true,
           meta: { title: 'Environment', description: '.env.local / Vercel env (read-only, masked)' },
         },
+        ExternalApis: {
+          Component: './_components/WithLayoutViews.tsx#ExternalApisViewWithLayout',
+          path: '/external-apis',
+          exact: true,
+          meta: { title: 'External APIs', description: 'Monitor and run external API sources (cron-job.org)' },
+        },
       },
     },
   },
-  collections: [Users, Pages, ExternalIntegrations],
+  collections: [Users, Pages, ExternalIntegrations, ApiSources, ExternalApiRuns],
   globals: [SiteSettings],
   secret: process.env.PAYLOAD_SECRET || 'change-me-in-production',
   typescript: {

@@ -197,7 +197,7 @@ export default function FloorplanTestPage() {
           {(result.reportId || reportShortId) && (
             <p className="text-sm">
               <Link
-                href={`/dashboard/ai/reports?projectId=${result.projectId}&reportId=${result.reportId}`}
+                href={`/dashboard/ai/analyse?projectId=${result.projectId}&reportId=${result.reportId}`}
                 className="text-primary underline hover:no-underline"
               >
                 Open report

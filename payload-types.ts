@@ -70,6 +70,8 @@ export interface Config {
     users: User;
     pages: Page;
     'external-integrations': ExternalIntegration;
+    'api-sources': ApiSource;
+    'external-api-runs': ExternalApiRun;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -80,6 +82,8 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
     'external-integrations': ExternalIntegrationsSelect<false> | ExternalIntegrationsSelect<true>;
+    'api-sources': ApiSourcesSelect<false> | ApiSourcesSelect<true>;
+    'external-api-runs': ExternalApiRunsSelect<false> | ExternalApiRunsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -124,6 +128,8 @@ export interface UserAuthOperations {
   };
 }
 /**
+ * CMS / Payload admins. For app sign-in users, see “App users” under App monitoring.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users".
  */
@@ -169,6 +175,10 @@ export interface Page {
    */
   metaDescription?: string | null;
   /**
+   * SEO: comma-separated keywords
+   */
+  metaKeywords?: string | null;
+  /**
    * SEO: canonical URL
    */
   canonicalUrl?: string | null;
@@ -193,6 +203,81 @@ export interface ExternalIntegration {
    * Paste plain-text secret; it will be encrypted on save.
    */
   apiKey: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * External API sources. Configure each source; run manually or via cron-job.org.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "api-sources".
+ */
+export interface ApiSource {
+  id: number;
+  name: string;
+  /**
+   * Adapter key (e.g. generic). Add new adapters in lib/external-apis/adapters.
+   */
+  adapter: string;
+  /**
+   * Adapter-specific config (e.g. { "url": "https://...", "method": "GET", "headers": {} }).
+   */
+  config:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  enabled?: boolean | null;
+  /**
+   * Optional: cron-job.org job ID for reference (console.cron-job.org).
+   */
+  cronJobId?: string | null;
+  /**
+   * Set automatically after each run.
+   */
+  lastRunAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * History of external API sync runs.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "external-api-runs".
+ */
+export interface ExternalApiRun {
+  id: number;
+  /**
+   * API source that was run.
+   */
+  source: number | ApiSource;
+  startedAt: string;
+  finishedAt?: string | null;
+  status: 'success' | 'error' | 'running';
+  /**
+   * Number of records returned (if applicable).
+   */
+  recordsFetched?: number | null;
+  /**
+   * Error message if status is error.
+   */
+  errorMessage?: string | null;
+  /**
+   * Optional summary or sample of fetched data (for debugging).
+   */
+  rawResult?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -231,6 +316,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'external-integrations';
         value: number | ExternalIntegration;
+      } | null)
+    | ({
+        relationTo: 'api-sources';
+        value: number | ApiSource;
+      } | null)
+    | ({
+        relationTo: 'external-api-runs';
+        value: number | ExternalApiRun;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -306,6 +399,7 @@ export interface PagesSelect<T extends boolean = true> {
   slug?: T;
   metaTitle?: T;
   metaDescription?: T;
+  metaKeywords?: T;
   canonicalUrl?: T;
   indexPage?: T;
   updatedAt?: T;
@@ -319,6 +413,35 @@ export interface ExternalIntegrationsSelect<T extends boolean = true> {
   serviceName?: T;
   environment?: T;
   apiKey?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "api-sources_select".
+ */
+export interface ApiSourcesSelect<T extends boolean = true> {
+  name?: T;
+  adapter?: T;
+  config?: T;
+  enabled?: T;
+  cronJobId?: T;
+  lastRunAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "external-api-runs_select".
+ */
+export interface ExternalApiRunsSelect<T extends boolean = true> {
+  source?: T;
+  startedAt?: T;
+  finishedAt?: T;
+  status?: T;
+  recordsFetched?: T;
+  errorMessage?: T;
+  rawResult?: T;
   updatedAt?: T;
   createdAt?: T;
 }

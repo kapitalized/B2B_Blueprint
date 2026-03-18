@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * AI Reports — list by project, select one, view in AIReportViewer.
- * When basePath is set (project-scoped URL), selection uses short URLs e.g. /project/x/y/reports/ab12cd.
+ * Analyse — list by project, select one, view in AIReportViewer.
+ * When basePath is set (project-scoped URL), selection uses short URLs e.g. /project/x/y/analyse/ab12cd.
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -24,7 +24,7 @@ interface ReportListItem {
   runDurationMs: number | null;
 }
 
-export interface AIReportsContentProps {
+export interface AnalyseReportListContentProps {
   initialProjectId?: string;
   /** When set, selecting a report navigates to basePath/reportShortId (short URL). */
   basePath?: string;
@@ -32,7 +32,7 @@ export interface AIReportsContentProps {
   initialReportShortId?: string;
 }
 
-export function AIReportsContent({ initialProjectId, basePath, initialReportShortId }: AIReportsContentProps = {}) {
+export function AnalyseReportListContent({ initialProjectId, basePath, initialReportShortId }: AnalyseReportListContentProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectIdParam = initialProjectId ?? searchParams.get('projectId');
@@ -53,7 +53,6 @@ export function AIReportsContent({ initialProjectId, basePath, initialReportShor
     if (reportIdParam && projectId) setSelectedId(reportIdParam);
   }, [reportIdParam, projectId]);
 
-  // Redirect dashboard?projectId=&reportId= to short URL when possible
   useEffect(() => {
     if (!projectIdParam || !reportIdParam || basePath) return;
     let cancelled = false;
@@ -111,9 +110,9 @@ export function AIReportsContent({ initialProjectId, basePath, initialReportShor
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">AI Reports</h1>
+          <h1 className="text-2xl font-bold">Analyse</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Pipeline results. Run analysis from Documents, then open here.
+            Pipeline results. Run analysis from Documents or the Analyse page, then open here.
           </p>
         </div>
       </div>
@@ -135,7 +134,7 @@ export function AIReportsContent({ initialProjectId, basePath, initialReportShor
               </select>
             </div>
           )}
-          <h2 className="font-semibold text-sm">Reports</h2>
+          <h2 className="font-semibold text-sm">Previous reports</h2>
           {loadingList ? (
             <p className="text-xs text-muted-foreground">Loading…</p>
           ) : reports.length === 0 ? (
@@ -144,11 +143,7 @@ export function AIReportsContent({ initialProjectId, basePath, initialReportShor
             <ul className="space-y-1">
               {reports.map((r) => {
                 const runAt = r.runStartedAt ? new Date(r.runStartedAt) : null;
-                const runLabel = runAt
-                  ? formatDateTime(runAt)
-                  : r.createdAt
-                    ? formatDate(r.createdAt)
-                    : null;
+                const runLabel = runAt ? formatDateTime(runAt) : r.createdAt ? formatDate(r.createdAt) : null;
                 const durationLabel = r.runDurationMs != null ? `${(r.runDurationMs / 1000).toFixed(1)}s` : null;
                 return (
                   <li key={r.id}>
@@ -163,7 +158,18 @@ export function AIReportsContent({ initialProjectId, basePath, initialReportShor
                       }}
                       className={`w-full text-left text-sm px-2 py-1.5 rounded ${selectedId === r.id ? 'bg-primary/20' : 'hover:bg-muted'}`}
                     >
-                      <span className="block font-medium truncate">{r.reportTitle}</span>
+                      <span
+                        className="block font-medium break-words"
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                        title={r.reportTitle}
+                      >
+                        {r.reportTitle}
+                      </span>
                       {(runLabel || durationLabel) && (
                         <span className="block text-xs text-muted-foreground mt-0.5">
                           {[runLabel, durationLabel].filter(Boolean).join(' · ')}

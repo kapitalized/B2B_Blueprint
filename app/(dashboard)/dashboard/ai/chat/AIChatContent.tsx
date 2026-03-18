@@ -35,6 +35,10 @@ interface ReportOption {
 export interface AIChatContentProps {
   /** When set (e.g. from /project/shortId/slug/chat), use this project and hide selector */
   initialProjectId?: string;
+  /** File IDs to include in chat reference (when set, only these are sent; otherwise backend uses all). */
+  referenceFileIds?: string[];
+  /** Report IDs to include in chat reference (when set, only these are sent; otherwise backend uses last 10). */
+  referenceReportIds?: string[];
 }
 
 function ThreadItem({
@@ -117,7 +121,7 @@ function ThreadItem({
   );
 }
 
-export function AIChatContent({ initialProjectId }: AIChatContentProps = {}) {
+export function AIChatContent({ initialProjectId, referenceFileIds, referenceReportIds }: AIChatContentProps = {}) {
   const searchParams = useSearchParams();
   const projectIdParam = initialProjectId ?? searchParams.get('projectId');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -264,7 +268,12 @@ export function AIChatContent({ initialProjectId }: AIChatContentProps = {}) {
       const res = await fetch(`/api/chat/threads/${selectedThreadId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: text, reportId: selectedReportId || undefined }),
+        body: JSON.stringify({
+        content: text,
+        reportId: selectedReportId || undefined,
+        fileIds: referenceFileIds,
+        reportIds: referenceReportIds,
+      }),
       });
       if (res.ok) {
         const assistant = await res.json();

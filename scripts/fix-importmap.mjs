@@ -24,19 +24,18 @@ try {
   process.exit(1);
 }
 
-const before = content;
-// Fix: Generator writes ../../../_components/ (wrong). Use ./_components/ relative to importMap.js.
-content = content.replace(/from ['"](\.\.\/)+_components\//g, "from './_components/");
-if (content.includes("from 'components/admin-payload/")) {
-  content = content.replaceAll("from 'components/admin-payload/", "from '@/components/admin-payload/");
+// Fix: Payload generator writes ../../../_components/ (wrong). Use ./_components/ relative to importMap.js.
+let fixed = content.replace(/from (['"])(\.\.\/)+_components\//g, "from './_components/");
+if (fixed.includes("from 'components/admin-payload/")) {
+  fixed = fixed.replaceAll("from 'components/admin-payload/", "from '@/components/admin-payload/");
 }
 
-if (content !== before) {
-  try {
-    writeFileSync(importMapPath, content, 'utf8');
+try {
+  writeFileSync(importMapPath, fixed, 'utf8');
+  if (fixed !== content) {
     console.log('fix-importmap: Corrected import paths in importMap.js.');
-  } catch (e) {
-    console.error('fix-importmap: Could not write importMap.js', e.message);
-    process.exit(1);
   }
+} catch (e) {
+  console.error('fix-importmap: Could not write importMap.js', e.message);
+  process.exit(1);
 }

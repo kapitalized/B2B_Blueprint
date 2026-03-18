@@ -12,6 +12,7 @@ const SECTIONS: { label: string; links: { href: string; label: string }[] }[] = 
       { href: '/admin/globals/site-settings', label: 'Site Settings' },
       { href: '/admin/collections/users', label: 'Admin users' },
       { href: '/admin/env', label: 'Environment' },
+      { href: '/admin/external-apis', label: 'External APIs' },
     ],
   },
   {

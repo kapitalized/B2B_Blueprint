@@ -180,7 +180,7 @@ export function AIDocumentsContent({ initialProjectId, baseReportsPath }: AIDocu
       <div>
         <h1 className="text-2xl font-bold">Documents</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Upload files, then run AI analysis. Results appear in Reports.
+          Upload files, then run AI analysis. Results appear in Analyse.
         </p>
       </div>
 
@@ -195,7 +195,7 @@ export function AIDocumentsContent({ initialProjectId, baseReportsPath }: AIDocu
           <span>
             Analysis run successfully using {successMessage.modelName}.{' '}
             <Link
-              href={baseReportsPath && successMessage.reportShortId ? `${baseReportsPath}/${successMessage.reportShortId}` : `/dashboard/ai/reports?projectId=${projectId}&reportId=${successMessage.reportId}`}
+              href={baseReportsPath && successMessage.reportShortId ? `${baseReportsPath}/${successMessage.reportShortId}` : `/dashboard/ai/analyse?projectId=${projectId}&reportId=${successMessage.reportId}`}
               className="font-medium underline hover:no-underline"
             >
               See report
@@ -238,8 +238,8 @@ export function AIDocumentsContent({ initialProjectId, baseReportsPath }: AIDocu
                 <p className="text-sm text-muted-foreground mt-0.5">All uploaded files for this project</p>
               </div>
               {initialProjectId && (
-                <Link href={baseReportsPath ?? `/dashboard/ai/reports?projectId=${projectId}`} className="text-sm text-primary hover:underline shrink-0">
-                  View reports
+                <Link href={baseReportsPath ?? `/dashboard/ai/analyse?projectId=${projectId}`} className="text-sm text-primary hover:underline shrink-0">
+                  View in Analyse
                 </Link>
               )}
             </div>
@@ -263,7 +263,19 @@ export function AIDocumentsContent({ initialProjectId, baseReportsPath }: AIDocu
                   <tbody>
                     {files.map((f) => (
                       <tr key={f.id} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="p-3 font-medium truncate max-w-[200px]" title={f.fileName}>{f.fileName}</td>
+                        <td className="p-3 font-medium max-w-[260px]" title={f.fileName}>
+                          <span
+                            className="block break-words"
+                            style={{
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {f.fileName}
+                          </span>
+                        </td>
                         <td className="p-3 text-muted-foreground">{f.buildingLevel != null ? `Level ${f.buildingLevel}` : '—'}</td>
                         <td className="p-3 text-muted-foreground">{f.fileType}</td>
                         <td className="p-3 text-muted-foreground">{f.fileSize != null ? `${(f.fileSize / 1024).toFixed(1)} KB` : '—'}</td>

@@ -15,6 +15,7 @@ import { BillingsView } from './BillingsView';
 import { CouponsView } from './CouponsView';
 import { AIRunsView } from './AIRunsView';
 import { EnvView } from './EnvView';
+import { ExternalApisView } from './ExternalApisView';
 
 type ServerProps = Record<string, unknown> & {
   initPageResult?: Record<string, unknown>;
@@ -54,3 +55,4 @@ export const BillingsViewWithLayout = withLayout(BillingsView);
 export const CouponsViewWithLayout = withLayout(CouponsView);
 export const AIRunsViewWithLayout = withLayout(AIRunsView);
 export const EnvViewWithLayout = withLayout(EnvView);
+export const ExternalApisViewWithLayout = withLayout(ExternalApisView);

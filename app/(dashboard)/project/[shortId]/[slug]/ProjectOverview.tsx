@@ -90,8 +90,8 @@ export function ProjectOverview({
             <Link href={`${basePath}/quantities`} className="text-sm text-primary hover:underline">
               Quantities
             </Link>
-            <Link href={`${basePath}/reports`} className="text-sm text-primary hover:underline">
-              Reports
+            <Link href={`${basePath}/analyse`} className="text-sm text-primary hover:underline">
+              Analyse
             </Link>
             <Link href={`${basePath}/chat`} className="text-sm text-primary hover:underline">
               Chat
@@ -166,10 +166,10 @@ export function ProjectOverview({
           </li>
           <li>
             <Link
-              href={`${basePath}/reports`}
+              href={`${basePath}/analyse`}
               className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4 text-foreground hover:bg-muted/50 transition-colors"
             >
-              <span className="font-semibold">Reports</span>
+              <span className="font-semibold">Analyse</span>
               {loading ? <span className="text-muted-foreground text-sm">…</span> : <span className="text-muted-foreground text-sm tabular-nums">{reportsCount} report{reportsCount !== 1 ? 's' : ''}</span>}
             </Link>
           </li>

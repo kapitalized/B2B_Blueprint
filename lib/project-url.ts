@@ -31,21 +31,21 @@ export function projectPath(p: { shortId?: string | null; slug?: string | null; 
   return `/dashboard?projectId=${p.id}`;
 }
 
-/** Build project sub-path e.g. /project/abc123/my-building/chat */
+/** Build project sub-path e.g. /project/abc123/my-building/analyse */
 export function projectSubPath(
   p: { shortId?: string | null; slug?: string | null; id: string },
-  segment: 'chat' | 'documents' | 'reports' | 'quantities'
+  segment: 'chat' | 'documents' | 'analyse' | 'quantities'
 ): string {
   if (p.shortId && p.slug) return `/project/${p.shortId}/${p.slug}/${segment}`;
-  const map: Record<string, string> = { documents: 'documents', reports: 'reports', chat: 'chat', quantities: 'reports' };
-  return `/dashboard/ai/${map[segment] ?? 'reports'}?projectId=${p.id}`;
+  const map: Record<string, string> = { documents: 'documents', analyse: 'analyse', chat: 'chat', quantities: 'quantities' };
+  return `/dashboard/ai/${map[segment] ?? 'analyse'}?projectId=${p.id}`;
 }
 
-/** Build report view URL: /project/shortId/slug/reports/reportShortId (short) or fallback to query. */
+/** Build report view URL: /project/shortId/slug/analyse/reportShortId (short) or fallback to query. */
 export function reportPath(
   p: { shortId?: string | null; slug?: string | null; id: string },
   report: { shortId?: string | null; id: string }
 ): string {
-  if (p.shortId && p.slug && report.shortId) return `/project/${p.shortId}/${p.slug}/reports/${report.shortId}`;
-  return `/dashboard/ai/reports?projectId=${p.id}&reportId=${report.id}`;
+  if (p.shortId && p.slug && report.shortId) return `/project/${p.shortId}/${p.slug}/analyse/${report.shortId}`;
+  return `/dashboard/ai/analyse?projectId=${p.id}&reportId=${report.id}`;
 }

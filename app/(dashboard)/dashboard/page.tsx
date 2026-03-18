@@ -227,8 +227,8 @@ export default function DashboardPage() {
                       <Link href={projectSubPath(p, 'quantities')} className="text-sm text-primary hover:underline">
                         Quantities
                       </Link>
-                      <Link href={projectSubPath(p, 'reports')} className="text-sm text-primary hover:underline">
-                        Reports
+                      <Link href={projectSubPath(p, 'analyse')} className="text-sm text-primary hover:underline">
+                        Analyse
                       </Link>
                       <Link href={projectSubPath(p, 'chat')} className="text-sm text-primary hover:underline">
                         Chat

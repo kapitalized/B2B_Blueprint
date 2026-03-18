@@ -30,12 +30,13 @@ export async function GET(
     .where(eq(project_main.id, projectId));
 
   const files = await db
-    .select({ fileName: project_files.fileName, fileType: project_files.fileType })
+    .select({ id: project_files.id, fileName: project_files.fileName, fileType: project_files.fileType })
     .from(project_files)
     .where(eq(project_files.projectId, projectId));
 
   const reports = await db
     .select({
+      id: report_generated.id,
       reportTitle: report_generated.reportTitle,
       reportType: report_generated.reportType,
       createdAt: report_generated.createdAt,
@@ -43,14 +44,15 @@ export async function GET(
     .from(report_generated)
     .where(eq(report_generated.projectId, projectId))
     .orderBy(desc(report_generated.createdAt))
-    .limit(10);
+    .limit(50);
 
   return NextResponse.json({
     projectName: project?.projectName ?? 'Unnamed',
     projectDescription: project?.projectDescription ?? null,
     projectObjectives: project?.projectObjectives ?? null,
-    files: files.map((f) => ({ fileName: f.fileName, fileType: f.fileType })),
+    files: files.map((f) => ({ id: f.id, fileName: f.fileName, fileType: f.fileType })),
     recentReports: reports.map((r) => ({
+      id: r.id,
       reportTitle: r.reportTitle,
       reportType: r.reportType,
       createdAt: r.createdAt?.toISOString() ?? null,

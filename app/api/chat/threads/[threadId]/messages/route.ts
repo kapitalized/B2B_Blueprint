@@ -59,6 +59,8 @@ export async function POST(
   const content = typeof body.content === 'string' ? body.content.trim() : '';
   if (!content) return NextResponse.json({ error: 'content required' }, { status: 400 });
   const reportId = typeof body.reportId === 'string' ? body.reportId.trim() || null : null;
+  const fileIds = Array.isArray(body.fileIds) ? (body.fileIds as string[]).filter((id) => typeof id === 'string') : undefined;
+  const reportIds = Array.isArray(body.reportIds) ? (body.reportIds as string[]).filter((id) => typeof id === 'string') : undefined;
 
   const projectId = access.thread.projectId;
   const [project] = await db
@@ -69,22 +71,15 @@ export async function POST(
     })
     .from(project_main)
     .where(eq(project_main.id, projectId));
-  const files = await db
+  let files = await db
     .select({ id: project_files.id, fileName: project_files.fileName, fileType: project_files.fileType })
     .from(project_files)
     .where(eq(project_files.projectId, projectId));
-  const analyses = await db
-    .select({ id: ai_analyses.id, analysisResult: ai_analyses.analysisResult })
-    .from(ai_analyses)
-    .where(eq(ai_analyses.projectId, projectId))
-    .orderBy(desc(ai_analyses.createdAt))
-    .limit(10);
-  const analysisParts = analyses.map((a) => {
-    const r = a.analysisResult as { items?: Array<{ label?: string; value?: number; unit?: string }>; synthesis?: { content_md?: string } };
-    if (r.synthesis?.content_md) return r.synthesis.content_md;
-    if (Array.isArray(r.items)) return r.items.map((i) => `${i.label}: ${i.value} ${i.unit ?? ''}`).join('\n');
-    return JSON.stringify(r);
-  });
+  if (fileIds?.length) {
+    const idSet = new Set(fileIds);
+    files = files.filter((f) => idSet.has(f.id));
+  }
+
   const refLines: string[] = [];
   refLines.push(`Project: ${project?.projectName ?? 'Unnamed'}`);
   if (project?.projectDescription) refLines.push(`Description: ${project.projectDescription}`);
@@ -94,13 +89,73 @@ export async function POST(
   } else {
     refLines.push('Uploaded documents: none yet.');
   }
-  if (analysisParts.length > 0) {
-    refLines.push('Reports and analyses (for citations use these analysis ids): ' + analyses.map((a) => a.id).join(', '));
-    refLines.push('Content:');
-    refLines.push(analysisParts.join('\n\n'));
+
+  if (reportIds?.length) {
+    const reportsRows = await db
+      .select({
+        id: report_generated.id,
+        reportTitle: report_generated.reportTitle,
+        content: report_generated.content,
+        analysisSourceId: report_generated.analysisSourceId,
+      })
+      .from(report_generated)
+      .where(eq(report_generated.projectId, projectId));
+    const reportIdSet = new Set(reportIds);
+    const selectedReports = reportsRows.filter((r) => reportIdSet.has(r.id));
+    const analysisIds = selectedReports.map((r) => r.analysisSourceId).filter(Boolean) as string[];
+    let analyses: { id: string; analysisResult: unknown }[] = [];
+    if (analysisIds.length > 0) {
+      analyses = await db
+        .select({ id: ai_analyses.id, analysisResult: ai_analyses.analysisResult })
+        .from(ai_analyses)
+        .where(eq(ai_analyses.projectId, projectId));
+      const analysisIdSet = new Set(analysisIds);
+      analyses = analyses.filter((a) => analysisIdSet.has(a.id));
+    }
+    const analysisParts = analyses.map((a) => {
+      const r = a.analysisResult as { items?: Array<{ label?: string; value?: number; unit?: string }>; synthesis?: { content_md?: string } };
+      if (r?.synthesis?.content_md) return r.synthesis.content_md;
+      if (Array.isArray(r?.items)) return r.items.map((i) => `${i.label}: ${i.value} ${i.unit ?? ''}`).join('\n');
+      return JSON.stringify(r ?? {});
+    });
+    for (const report of selectedReports) {
+      let block = `\n---\nReport: ${report.reportTitle}\n`;
+      if (report.content) block += `${report.content}\n`;
+      const analysis = analyses.find((a) => a.id === report.analysisSourceId);
+      if (analysis?.analysisResult) {
+        const result = analysis.analysisResult as { items?: Array<{ label?: string; value?: number; unit?: string }> };
+        const items = result?.items ?? [];
+        if (items.length > 0) {
+          block += 'Quantities: ' + items.map((i) => `${i.label ?? ''} ${i.value ?? ''} ${i.unit ?? ''}`).join('; ') + '\n';
+        }
+      }
+      refLines.push(block);
+    }
+    if (analyses.length > 0) {
+      refLines.push('Reports and analyses (for citations use these analysis ids): ' + analyses.map((a) => a.id).join(', '));
+    }
   } else {
-    refLines.push('Reports and analyses: none yet.');
+    const analyses = await db
+      .select({ id: ai_analyses.id, analysisResult: ai_analyses.analysisResult })
+      .from(ai_analyses)
+      .where(eq(ai_analyses.projectId, projectId))
+      .orderBy(desc(ai_analyses.createdAt))
+      .limit(10);
+    const analysisParts = analyses.map((a) => {
+      const r = a.analysisResult as { items?: Array<{ label?: string; value?: number; unit?: string }>; synthesis?: { content_md?: string } };
+      if (r?.synthesis?.content_md) return r.synthesis.content_md;
+      if (Array.isArray(r?.items)) return r.items.map((i) => `${i.label}: ${i.value} ${i.unit ?? ''}`).join('\n');
+      return JSON.stringify(r ?? {});
+    });
+    if (analysisParts.length > 0) {
+      refLines.push('Reports and analyses (for citations use these analysis ids): ' + analyses.map((a) => a.id).join(', '));
+      refLines.push('Content:');
+      refLines.push(analysisParts.join('\n\n'));
+    } else {
+      refLines.push('Reports and analyses: none yet.');
+    }
   }
+
   try {
     const ragHits = await searchKnowledgeNodes(projectId, content, 8);
     if (ragHits.length > 0) {
